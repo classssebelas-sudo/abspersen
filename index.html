@@ -88,63 +88,6 @@
     </div>
   </div>
 
-  <!-- MODAL PENDAFTARAN GURU BARU (MODE DARURAT & PENYIMPANAN SPREADSHEET) -->
-  <div id="register-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden px-4">
-    <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl transform scale-95 transition-all">
-      <div class="flex flex-col gap-4">
-        <div class="flex items-center gap-3 border-b border-slate-100 pb-3">
-          <div class="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center text-lg">
-            <i class="fa-solid fa-user-plus"></i>
-          </div>
-          <div>
-            <h3 class="text-base font-bold text-slate-800">Registrasi Guru Baru</h3>
-            <p class="text-[10px] text-slate-500">Mendaftarkan profil Anda secara permanen ke Google Sheets.</p>
-          </div>
-        </div>
-        
-        <form id="form-register-darurat" onsubmit="handleRegisterDarurat(event)" class="flex flex-col gap-4 text-left">
-          <div>
-            <label class="block text-xs font-bold text-slate-600 mb-1.5 uppercase">NIP Terpilih</label>
-            <input type="text" id="reg-nip" readonly class="w-full p-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold text-slate-500 focus:outline-none">
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-600 mb-1.5 uppercase">Nama Lengkap & Gelar</label>
-            <input type="text" id="reg-nama" required class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="Contoh: Drs. Hermawan, M.Pd.">
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-600 mb-1.5 uppercase">Jabatan Utama</label>
-            <input type="text" id="reg-jabatan" required class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="Contoh: Guru Matematika / Pembina OSIS">
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-600 mb-1.5 uppercase">Pilih Avatar Profil</label>
-            <div class="grid grid-cols-4 gap-2">
-              <label class="cursor-pointer border-2 border-slate-200 rounded-xl overflow-hidden p-1 flex items-center justify-center shadow-md select-avatar" id="label-av-1">
-                <input type="radio" name="reg-avatar" value="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150" checked class="hidden" onclick="selectAvatarStyle(1)">
-                <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150" class="w-10 h-10 rounded-full object-cover">
-              </label>
-              <label class="cursor-pointer border-2 border-slate-200 rounded-xl overflow-hidden p-1 flex items-center justify-center hover:border-emerald-500 transition-all select-avatar" id="label-av-2">
-                <input type="radio" name="reg-avatar" value="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150" class="hidden" onclick="selectAvatarStyle(2)">
-                <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150" class="w-10 h-10 rounded-full object-cover">
-              </label>
-              <label class="cursor-pointer border-2 border-slate-200 rounded-xl overflow-hidden p-1 flex items-center justify-center hover:border-emerald-500 transition-all select-avatar" id="label-av-3">
-                <input type="radio" name="reg-avatar" value="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150" class="hidden" onclick="selectAvatarStyle(3)">
-                <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150" class="w-10 h-10 rounded-full object-cover">
-              </label>
-              <label class="cursor-pointer border-2 border-slate-200 rounded-xl overflow-hidden p-1 flex items-center justify-center hover:border-emerald-500 transition-all select-avatar" id="label-av-4">
-                <input type="radio" name="reg-avatar" value="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150" class="hidden" onclick="selectAvatarStyle(4)">
-                <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150" class="w-10 h-10 rounded-full object-cover">
-              </label>
-            </div>
-          </div>
-          <div class="flex gap-3 mt-2">
-            <button type="submit" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shadow">DAFTAR & MASUK</button>
-            <button type="button" onclick="closeRegisterModal()" class="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition-colors">BATAL</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-
   <!-- 1. HALAMAN LOGIN (TAMPILAN AWAL) -->
   <div id="page-login" class="flex-1 flex flex-col items-center justify-center px-6 py-12">
     <div class="w-full max-w-md bg-white rounded-3xl p-8 shadow-xl border border-slate-100 flex flex-col items-center">
@@ -1419,6 +1362,7 @@
       if (input) input.click();
     }
 
+    // Handler Unggah Avatar dengan pembatasan 50KB & Format PNG/JPG
     function handleAvatarUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -1515,35 +1459,6 @@
       }
     }
 
-    async function kirimRegistrasiKeSpreadsheet(nip, nama, jabatan, foto) {
-      if (!SPREADSHEET_WEB_APP_URL) {
-        return { success: true, localOnly: true };
-      }
-
-      const payload = {
-        action: "register_guru",
-        nip: nip,
-        nama: nama,
-        jabatan: jabatan,
-        foto: foto
-      };
-
-      try {
-        await fetch(SPREADSHEET_WEB_APP_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(payload)
-        });
-        return { success: true };
-      } catch (error) {
-        console.error("Gagal mengirim data registrasi ke Google Sheets:", error);
-        return { success: false, error: error.message };
-      }
-    }
-
     async function kirimUpdateFotoKeSpreadsheet(nip, fotoBase64) {
       if (!SPREADSHEET_WEB_APP_URL) {
         return { success: true, localOnly: true };
@@ -1569,83 +1484,6 @@
         console.error("Gagal memperbarui foto profil di Google Sheets:", error);
         return { success: false, error: error.message };
       }
-    }
-
-    // ==========================================
-    // LOGIKA PENDAFTARAN DARURAT & DATABASE ONLINE
-    // ==========================================
-    let selectedAvatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150";
-
-    // FUNGSI MEMILIH AVATAR
-    function selectAvatarStyle(index) {
-      const labels = ['label-av-1', 'label-av-2', 'label-av-3', 'label-av-4'];
-      labels.forEach((id, idx) => {
-        const el = document.getElementById(id);
-        if (el) {
-          if (idx === index - 1) {
-            el.className = "cursor-pointer border-2 border-emerald-500 rounded-xl overflow-hidden p-1 flex items-center justify-center shadow-md select-avatar scale-105 transition-all";
-            const input = el.querySelector('input');
-            if (input) selectedAvatarUrl = input.value;
-          } else {
-            el.className = "cursor-pointer border-2 border-slate-200 rounded-xl overflow-hidden p-1 flex items-center justify-center hover:border-emerald-500 transition-all select-avatar opacity-70";
-          }
-        }
-      });
-    }
-
-    function closeRegisterModal() {
-      const modal = document.getElementById('register-modal');
-      if (modal) modal.classList.add('hidden');
-    }
-
-    // PROSES DAFTAR BARU & SIMPAN KE SPREADSHEET
-    async function handleRegisterDarurat(event) {
-      event.preventDefault();
-      const nip = document.getElementById('reg-nip').value;
-      const nama = document.getElementById('reg-nama').value.trim();
-      const jabatan = document.getElementById('reg-jabatan').value.trim();
-
-      showLoading(true, "Menyimpan Guru ke Google Sheets secara permanen...");
-
-      const res = await kirimRegistrasiKeSpreadsheet(nip, nama, jabatan, selectedAvatarUrl);
-
-      showLoading(false);
-      closeRegisterModal();
-
-      const newUser = {
-        nip: nip,
-        nama: nama,
-        jabatan: jabatan,
-        foto: selectedAvatarUrl
-      };
-
-      dynamicPegawai[nip] = newUser;
-      currentUser = newUser;
-
-      const pNama = document.getElementById('p-nama');
-      const pJabatan = document.getElementById('p-jabatan');
-      const pFoto = document.getElementById('p-foto');
-
-      if (pNama) pNama.innerText = currentUser.nama;
-      if (pJabatan) pJabatan.innerText = currentUser.jabatan;
-      if (pFoto) pFoto.src = currentUser.foto;
-
-      renderProfileMenu();
-
-      const pageLogin = document.getElementById('page-login');
-      const mainDashboard = document.getElementById('main-dashboard');
-      if (pageLogin) pageLogin.classList.add('hidden');
-      if (mainDashboard) mainDashboard.classList.remove('hidden');
-
-      renderLivePresensi();
-      renderRiwayatList();
-      filterDinasLuar();
-      filterIzinPersonal();
-      
-      // Ambil data DL khusus Guru baru (Akan kosong secara default dari sheet)
-      fetchDLFromSheets(currentUser.nip);
-
-      showCustomModal("success", "Registrasi Berhasil!", `Selamat datang, ${currentUser.nama}. Data Anda telah disimpan secara permanen di database Google Sheets. Login selanjutnya langsung dikenali!`);
     }
 
     // ==========================================
@@ -1677,58 +1515,59 @@
         console.warn("Koneksi online terhambat oleh Sandbox CSP. Mengaktifkan basis data guru cadangan lokal.");
       }
 
-      // Verifikasi login
+      // Verifikasi login & Memetakan data dari spreadsheet Guru secara akurat
       if (dynamicPegawai[nip]) {
         currentUser = dynamicPegawai[nip];
-        
-        const pNama = document.getElementById('p-nama');
-        const pJabatan = document.getElementById('p-jabatan');
-        const pFoto = document.getElementById('p-foto');
-
-        if (pNama) pNama.innerText = currentUser.nama;
-        if (pJabatan) pJabatan.innerText = currentUser.jabatan;
-        if (pFoto) pFoto.src = currentUser.foto || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150";
-
-        renderProfileMenu();
-
-        const pageLogin = document.getElementById('page-login');
-        const mainDashboard = document.getElementById('main-dashboard');
-        if (pageLogin) pageLogin.classList.add('hidden');
-        if (mainDashboard) mainDashboard.classList.remove('hidden');
-
-        // Reset visualisasi Beranda khusus DL (Kondisi default)
-        const isDL = getActiveDinasLuar();
-        const tibaKolom = document.getElementById('jam-tiba-kolom');
-        const gridContainer = document.getElementById('informasi-jam-grid');
-        
-        if (isDL) {
-          if (tibaKolom) tibaKolom.classList.remove('hidden');
-          if (gridContainer) gridContainer.className = "grid grid-cols-3 gap-3 w-full mt-6 pt-6 border-t border-slate-100";
-        } else {
-          if (tibaKolom) tibaKolom.classList.add('hidden');
-          if (gridContainer) gridContainer.className = "grid grid-cols-2 gap-4 w-full mt-6 pt-6 border-t border-slate-100";
-        }
-
-        renderLivePresensi();
-        renderRiwayatList();
-        filterDinasLuar();
-        filterIzinPersonal();
-        
-        // Ambil riwayat dinas luar milik guru tersebut secara asinkron dari Google Sheets
-        fetchDLFromSheets(currentUser.nip);
-
-        if (usingSheets) {
-          showCustomModal("success", "Sesi Terbuka (Online)", `Selamat bekerja, ${currentUser.nama}. Data profil Anda sinkron dengan Google Sheets.`);
-        } else {
-          showCustomModal("success", "Sesi Terbuka (Lokal)", `Berhasil masuk menggunakan basis data cadangan lokal.`);
-        }
       } else {
-        const regNipEl = document.getElementById('reg-nip');
-        if (regNipEl) regNipEl.value = nip;
-        
-        selectAvatarStyle(1);
-        const regModal = document.getElementById('register-modal');
-        if (regModal) regModal.classList.remove('hidden');
+        // Fallback jika NIP belum terdaftar di database, sistem langsung otomatis membuat profil lokal agar login selalu instan!
+        currentUser = {
+          nip: nip,
+          nama: "Guru SMA Mifthaussaadah",
+          jabatan: "Guru Pengajar",
+          foto: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"
+        };
+        dynamicPegawai[nip] = currentUser;
+      }
+
+      const pNama = document.getElementById('p-nama');
+      const pJabatan = document.getElementById('p-jabatan');
+      const pFoto = document.getElementById('p-foto');
+
+      if (pNama) pNama.innerText = currentUser.nama;
+      if (pJabatan) pJabatan.innerText = currentUser.jabatan;
+      if (pFoto) pFoto.src = currentUser.foto || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150";
+
+      renderProfileMenu();
+
+      const pageLogin = document.getElementById('page-login');
+      const mainDashboard = document.getElementById('main-dashboard');
+      if (pageLogin) pageLogin.classList.add('hidden');
+      if (mainDashboard) mainDashboard.classList.remove('hidden');
+
+      // Reset visualisasi Beranda khusus DL (Kondisi default)
+      const isDL = getActiveDinasLuar();
+      const tibaKolom = document.getElementById('jam-tiba-kolom');
+      const gridContainer = document.getElementById('informasi-jam-grid');
+      
+      if (isDL) {
+        if (tibaKolom) tibaKolom.classList.remove('hidden');
+        if (gridContainer) gridContainer.className = "grid grid-cols-3 gap-3 w-full mt-6 pt-6 border-t border-slate-100";
+      } else {
+        if (tibaKolom) tibaKolom.classList.add('hidden');
+        if (gridContainer) gridContainer.className = "grid grid-cols-2 gap-4 w-full mt-6 pt-6 border-t border-slate-100";
+      }
+
+      renderLivePresensi();
+      renderRiwayatList();
+      filterDinasLuar();
+      
+      // Ambil riwayat dinas luar milik guru tersebut secara asinkron dari Google Sheets
+      fetchDLFromSheets(currentUser.nip);
+
+      if (usingSheets) {
+        showCustomModal("success", "Sesi Terbuka", `Selamat bekerja, ${currentUser.nama}. Sesi Anda berhasil diselaraskan.`);
+      } else {
+        showCustomModal("success", "Sesi Terbuka (Lokal)", `Berhasil masuk menggunakan basis data cadangan lokal.`);
       }
     }
 
@@ -2295,171 +2134,6 @@
       });
     }
 
-    // LAYANAN IZIN PERSONAL (IZIN)
-    let currentTabIzin = 'semua';
-    function setTabIzin(status) {
-      currentTabIzin = status;
-      const tabs = ['semua', 'Menunggu', 'Disetujui', 'Ditolak'];
-      tabs.forEach(tab => {
-        const el = document.getElementById(`tab-izin-${tab}`);
-        if (el) {
-          if (tab === status) {
-            el.className = "flex-1 py-2 text-center font-bold border-b-2 border-emerald-600 text-emerald-600";
-          } else {
-            el.className = "flex-1 py-2 text-center font-bold border-b-2 border-transparent text-slate-400";
-          }
-        }
-      });
-      filterIzinPersonal();
-    }
-
-    function bukaFormIzin(buka) {
-      const form = document.getElementById('form-pengajuan-izin');
-      if (buka) {
-        if (form) form.classList.remove('hidden');
-        if (form) form.scrollIntoView({ behavior: 'smooth' });
-      } else {
-        if (form) form.classList.add('hidden');
-      }
-    }
-
-    function kirimIzinPersonal(event) {
-      event.preventDefault();
-      const jenis = document.getElementById('izin-jenis').value;
-      const tanggal = document.getElementById('izin-tanggal').value;
-      const jam = document.getElementById('izin-jam').value;
-      const keterangan = document.getElementById('izin-keterangan').value;
-
-      showLoading(true, "Mengirim Pengajuan Izin...");
-
-      setTimeout(() => {
-        showLoading(false);
-        database.izinPersonal.unshift({
-          id: Date.now(),
-          jenis,
-          tanggal,
-          jam,
-          keterangan,
-          status: "Menunggu"
-        });
-
-        document.getElementById('izin-tanggal').value = '';
-        document.getElementById('izin-jam').value = '';
-        document.getElementById('izin-keterangan').value = '';
-
-        bukaFormIzin(false);
-        
-        // Simpan ke localStorage
-        saveDatabaseToStorage();
-
-        filterIzinPersonal();
-        showCustomModal("success", "Izin Dikirim", "Izin personal berhasil dikirim dan sedang dalam proses peninjauan.");
-      }, 1000);
-    }
-    function onEdit(e) {
-  // 1. Ambil informasi sel yang sedang diedit/diubah
-  var range = e.range;
-  var sheet = range.getSheet();
-  
-  // 2. Filter: Pastikan yang diedit adalah sheet "izin_personal" 
-  // DAN yang diubah adalah Kolom 8 (Kolom H)
-  if (sheet.getName() === "izin_personal" && range.getColumn() === 8) {
-    
-    var row = range.getRow();
-    
-    // 3. Pastikan perubahan terjadi dari baris 2 sampai ke bawah (bukan baris 1/header)
-    if (row >= 2) {
-      
-      var statusBaru = range.getValue(); // Mengambil nilai ("Disetujui" atau "Ditolak")
-      
-      // Ambil data pendukung di baris yang sama jika diperlukan (misal: ID Izin atau Nama Guru)
-      // Contoh: Jika ID Izin ada di kolom 1 (Kolom A), aktifkan kode di bawah ini:
-      // var idIzin = sheet.getRange(row, 1).getValue();
-      
-      // 4. Jalankan fungsi untuk sinkronisasi ke aplikasi
-      perbaruiStatusDiAplikasi(row, statusBaru);
-    }
-  }
-}
-
-// Fungsi pengubung ke sistem aplikasi Anda
-function perbaruiStatusDiAplikasi(nomorBaris, status) {
-  
-  // Log untuk pengecekan di konsol Apps Script
-  console.log("Baris ke-" + nomorBaris + " statusnya berubah menjadi: " + status);
-  
-  /* CATATAN INTEGRASI:
-     
-     - Jika Anda menggunakan APPSHEET / GLIDE: 
-       Anda TIDAK PERLU menulis kode tambahan di bawah ini. Aplikasi AppSheet/Glide 
-       secara otomatis akan membaca perubahan di kolom 8 ini dan mengubah status di aplikasi guru.
-       
-     - Jika Anda menggunakan WEB APP (HTML/JS buatan sendiri):
-       Anda perlu mengirim data status baru ini ke database Anda menggunakan UrlFetchApp.fetch() 
-       atau melalui fungsi API aplikasi Anda.
-  */
-  
-  if (status === "Disetujui") {
-    // Aksi tambahan jika disetujui (misal: kirim notifikasi/email otomatis ke guru)
-  } else if (status === "Ditolak") {
-    // Aksi tambahan jika ditolak
-  }
-}
-
-    // FILTER IZIN PERSONAL
-    function filterIzinPersonal() {
-      const container = document.getElementById('list-izin');
-      if (!container) return;
-      
-      const status_tahun_el = document.getElementById('filter-izin-tahun');
-      const status_bulan_el = document.getElementById('filter-izin-bulan');
-      
-      const text_tahun = status_tahun_el ? status_tahun_el.value : "2026";
-      const text_bulan = status_bulan_el ? status_bulan_el.value : "semua";
-
-      let filtered = database.izinPersonal;
-
-      if (currentTabIzin !== 'semua') {
-        filtered = filtered.filter(item => item.status === currentTabIzin);
-      }
-
-      filtered = filtered.filter(item => {
-        const tgl = new Date(item.tanggal);
-        const matchesTahun = tgl.getFullYear().toString() === text_tahun;
-        const matchesBulan = text_bulan === "semua" ? true : (tgl.getMonth() + 1).toString() === text_bulan;
-        return matchesTahun && matchesBulan;
-      });
-
-      if (filtered.length === 0) {
-        container.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Tidak ada riwayat izin personal pada kriteria ini.</p>`;
-        return;
-      }
-
-      container.innerHTML = filtered.map(item => {
-        let statusBadge = '';
-        if (item.status === 'Disetujui') {
-          statusBadge = '<span class="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px] font-bold px-2 py-0.5 rounded-md">Disetujui</span>';
-        } else if (item.status === 'Menunggu') {
-          statusBadge = '<span class="bg-amber-50 text-amber-700 border border-amber-100 text-[10px] font-bold px-2 py-0.5 rounded-md">Menunggu</span>';
-        } else {
-          statusBadge = '<span class="bg-rose-50 text-rose-700 border border-rose-100 text-[10px] font-bold px-2 py-0.5 rounded-md">Ditolak</span>';
-        }
-
-        return `
-          <div class="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm flex flex-col gap-2">
-            <div class="flex justify-between items-start">
-              <div>
-                <h4 class="text-xs font-bold text-slate-800 text-left">${item.jenis}</h4>
-                <p class="text-[9px] text-slate-400 mt-0.5 text-left">Tanggal: ${item.tanggal} | Jam: ${item.jam} WIB</p>
-              </div>
-              ${statusBadge}
-            </div>
-            <p class="text-[11px] text-slate-600 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-left">${item.keterangan}</p>
-          </div>
-        `;
-      }).join('');
-    }
-
     // RIWAYAT & REKAPITULASI PRIBADI
     function renderRiwayatList() {
       const container = document.getElementById('rincian-harian-list');
@@ -2507,9 +2181,6 @@ function perbaruiStatusDiAplikasi(nomorBaris, status) {
         }
 
         // PERHITUNGAN MENIT ALFA DINAMIS:
-        // 1. Jika tidak absen masuk (alfa total) -> dihitung 510 menit (06.30 - 15.00)
-        // 2. Jika absen masuk ada, tapi tidak absen pulang (TAP) -> dihitung penalti 270 menit
-        // 3. Jika presensi lengkap masuk & pulang -> dihitung 0 menit (tidak terisi)
         if (!isExcused) {
           if (item.masuk === "--:--") {
             totalAlfaMnt += 510; 
