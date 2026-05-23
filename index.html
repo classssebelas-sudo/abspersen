@@ -723,7 +723,7 @@
     // ==========================================
     const SPREADSHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzIPop_UzimD0uahrCOHc9aRn5Zo-KzuyGbdE3xHYeV8G46IGf3UnpDVWRQgC-w6iZkjQ/exec"; 
 
-    const KOORDINAT_SEKOLAH = [-6.3564504700942335, 106.52880277283144]; // SMA Mifthaussaadah (Titik Lock Geofence)
+    const KOORDINAT_SEKOLAH = [-6.356202599306289, 106.52876104745228]; // SMA Mifthaussaadah (Titik Lock Geofence)
     let userLocation = null; 
     let map = null; 
     let mapMarker = null;
@@ -2356,6 +2356,55 @@
         showCustomModal("success", "Izin Dikirim", "Izin personal berhasil dikirim dan sedang dalam proses peninjauan.");
       }, 1000);
     }
+    function onEdit(e) {
+  // 1. Ambil informasi sel yang sedang diedit/diubah
+  var range = e.range;
+  var sheet = range.getSheet();
+  
+  // 2. Filter: Pastikan yang diedit adalah sheet "izin_personal" 
+  // DAN yang diubah adalah Kolom 8 (Kolom H)
+  if (sheet.getName() === "izin_personal" && range.getColumn() === 8) {
+    
+    var row = range.getRow();
+    
+    // 3. Pastikan perubahan terjadi dari baris 2 sampai ke bawah (bukan baris 1/header)
+    if (row >= 2) {
+      
+      var statusBaru = range.getValue(); // Mengambil nilai ("Disetujui" atau "Ditolak")
+      
+      // Ambil data pendukung di baris yang sama jika diperlukan (misal: ID Izin atau Nama Guru)
+      // Contoh: Jika ID Izin ada di kolom 1 (Kolom A), aktifkan kode di bawah ini:
+      // var idIzin = sheet.getRange(row, 1).getValue();
+      
+      // 4. Jalankan fungsi untuk sinkronisasi ke aplikasi
+      perbaruiStatusDiAplikasi(row, statusBaru);
+    }
+  }
+}
+
+// Fungsi pengubung ke sistem aplikasi Anda
+function perbaruiStatusDiAplikasi(nomorBaris, status) {
+  
+  // Log untuk pengecekan di konsol Apps Script
+  console.log("Baris ke-" + nomorBaris + " statusnya berubah menjadi: " + status);
+  
+  /* CATATAN INTEGRASI:
+     
+     - Jika Anda menggunakan APPSHEET / GLIDE: 
+       Anda TIDAK PERLU menulis kode tambahan di bawah ini. Aplikasi AppSheet/Glide 
+       secara otomatis akan membaca perubahan di kolom 8 ini dan mengubah status di aplikasi guru.
+       
+     - Jika Anda menggunakan WEB APP (HTML/JS buatan sendiri):
+       Anda perlu mengirim data status baru ini ke database Anda menggunakan UrlFetchApp.fetch() 
+       atau melalui fungsi API aplikasi Anda.
+  */
+  
+  if (status === "Disetujui") {
+    // Aksi tambahan jika disetujui (misal: kirim notifikasi/email otomatis ke guru)
+  } else if (status === "Ditolak") {
+    // Aksi tambahan jika ditolak
+  }
+}
 
     // FILTER IZIN PERSONAL
     function filterIzinPersonal() {
