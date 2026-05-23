@@ -140,7 +140,7 @@
     <!-- Header Aplikasi -->
     <header class="bg-white border-b border-slate-100 sticky top-0 z-40 px-5 py-4 flex items-center justify-between">
       <div class="flex items-center gap-2.5">
-        <!-- Logo Header Sekolah (Dapat berubah sesuai logo login) -->
+        <!-- Logo Header Sekolah -->
         <div id="header-school-logo-container" class="w-9 h-9 bg-emerald-100 rounded-lg flex items-center justify-center text-emerald-600 font-bold overflow-hidden">
           <i class="fa-solid fa-school"></i>
         </div>
@@ -958,7 +958,6 @@
             resolve(null); // Segera selesaikan promise dengan nilai null untuk mengaktifkan database lokal
           };
           
-          // Masukkan ke dokumen HTML untuk memicu eksekusi
           document.body.appendChild(script);
         } catch (e) {
           console.error("Kesalahan inisialisasi JSONP:", e);
@@ -982,7 +981,7 @@
     }
 
     // ==========================================
-    // BARU: AMBIL DATA DINAS LUAR DARI GOOGLE SHEETS
+    // AMBIL DATA DINAS LUAR DARI GOOGLE SHEETS
     // ==========================================
     let jsonpDLResolve = null;
 
@@ -1037,6 +1036,121 @@
           saveDatabaseToStorage();
           filterDinasLuar();
           checkGeofenceDistance();
+        }
+      });
+    }
+
+    // ==========================================
+    // AMBIL DATA IZIN PERSONAL DARI GOOGLE SHEETS (SINKRONISASI KOLOM 8)
+    // ==========================================
+    let jsonpIzinResolve = null;
+
+    window.handleSIGAPIzinCallback = function(data) {
+      if (jsonpIzinResolve) {
+        jsonpIzinResolve(data);
+      }
+    };
+
+    async function fetchIzinFromSheets(nip) {
+      if (!SPREADSHEET_WEB_APP_URL) return;
+
+      showLoading(true, "Memperbarui Data Izin Personal...");
+
+      return new Promise((resolve) => {
+        let timeoutId = null;
+        let script = null;
+        jsonpIzinResolve = resolve;
+
+        const cleanup = () => {
+          if (timeoutId) clearTimeout(timeoutId);
+          const oldScript = document.getElementById('sigap-izin-script');
+          if (oldScript) {
+            try { oldScript.remove(); } catch(e) {}
+          }
+        };
+
+        timeoutId = setTimeout(() => {
+          console.warn("Pemuatan Izin dari Sheets melampaui batas waktu.");
+          cleanup();
+          resolve(null);
+        }, 5000);
+
+        try {
+          script = document.createElement('script');
+          script.id = 'sigap-izin-script';
+          script.src = `${SPREADSHEET_WEB_APP_URL}?action=get_izin&nip=${nip}&callback=handleSIGAPIzinCallback&ts=${Date.now()}`;
+          script.onerror = () => {
+            cleanup();
+            resolve(null);
+          };
+          document.body.appendChild(script);
+        } catch (e) {
+          cleanup();
+          resolve(null);
+        }
+      }).then(result => {
+        showLoading(false);
+        if (result && result.status === "success" && result.izinPersonal) {
+          // Ganti data izin lokal dengan data resmi dari Sheets
+          database.izinPersonal = result.izinPersonal;
+          saveDatabaseToStorage();
+          filterIzinPersonal();
+        }
+      });
+    }
+
+    // ==========================================
+    // BARU: AMBIL LOG JAWABAN SPREADSHEET PRESENSI UNTUK LIVE KEHADIRAN (KOLOM 3, 4, 5, 6)
+    // ==========================================
+    let jsonpPresensiResolve = null;
+
+    window.handleSIGAPPresensiCallback = function(data) {
+      if (jsonpPresensiResolve) {
+        jsonpPresensiResolve(data);
+      }
+    };
+
+    async function fetchLiveKehadiranFromSheets() {
+      if (!SPREADSHEET_WEB_APP_URL) return;
+
+      return new Promise((resolve) => {
+        let timeoutId = null;
+        let script = null;
+        jsonpPresensiResolve = resolve;
+
+        const cleanup = () => {
+          if (timeoutId) clearTimeout(timeoutId);
+          const oldScript = document.getElementById('sigap-presensi-log-script');
+          if (oldScript) {
+            try { oldScript.remove(); } catch(e) {}
+          }
+        };
+
+        timeoutId = setTimeout(() => {
+          console.warn("Pemuatan Log Presensi dari Sheets melampaui batas waktu.");
+          cleanup();
+          resolve(null);
+        }, 5000);
+
+        try {
+          script = document.createElement('script');
+          script.id = 'sigap-presensi-log-script';
+          script.src = `${SPREADSHEET_WEB_APP_URL}?action=get_presensi&callback=handleSIGAPPresensiCallback&ts=${Date.now()}`;
+          script.onerror = () => {
+            cleanup();
+            resolve(null);
+          };
+          document.body.appendChild(script);
+        } catch (e) {
+          cleanup();
+          resolve(null);
+        }
+      }).then(result => {
+        if (result && result.status === "success" && result.presensi) {
+          // Sinkronisasikan log presensi dinamis dari Spreadsheet ke memori lokal
+          database.liveKehadiran = result.presensi;
+          saveDatabaseToStorage();
+          renderLivePresensi();
         }
       });
     }
@@ -1295,7 +1409,7 @@
       }).join('');
     }
 
-    // MODAL POP-UP CUSTOM (Ditempatkan di tempat semestinya agar tidak memicu ReferenceError)
+    // MODAL POP-UP CUSTOM
     function showCustomModal(type, title, message) {
       const modal = document.getElementById('custom-modal');
       const iconContainer = document.getElementById('modal-icon-container');
@@ -1486,6 +1600,141 @@
       }
     }
 
+    // PENGIRIMAN IZIN BARU KE GOOGLE SHEETS
+    async function kirimIzinPersonalKeSheets(nip, nama, jabatan, jenis, tanggal, jam, keterangan) {
+      if (!SPREADSHEET_WEB_APP_URL) return { success: true, localOnly: true };
+
+      const payload = {
+        action: "add_izin",
+        nip: nip,
+        nama: nama,
+        jabatan: jabatan,
+        jenis: jenis,
+        tanggal: tanggal,
+        jam: jam,
+        keterangan: keterangan,
+        status: "Menunggu" // Status Default Kolom 8
+      };
+
+      try {
+        await fetch(SPREADSHEET_WEB_APP_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        return { success: true };
+      } catch (error) {
+        console.error("Gagal mengirim ajuan Izin ke Google Sheets:", error);
+        return { success: false, error: error.toString() };
+      }
+    }
+
+    // FUNGSI UNTUK VISIBILITAS FORM IZIN
+    function bukaFormIzin(buka) {
+      const form = document.getElementById('form-pengajuan-izin');
+      if (form) {
+        if (buka) {
+          form.classList.remove('hidden');
+          form.scrollIntoView({ behavior: 'smooth' });
+        } else {
+          form.classList.add('hidden');
+        }
+      }
+    }
+
+    function filterIzinPersonal() {
+      const container = document.getElementById('list-izin');
+      if (!container) return;
+      
+      const status_tahun_el = document.getElementById('filter-izin-tahun');
+      const status_bulan_el = document.getElementById('filter-izin-bulan');
+      
+      const text_tahun = status_tahun_el ? status_tahun_el.value : "2026";
+      const text_bulan = status_bulan_el ? status_bulan_el.value : "semua";
+
+      let filtered = database.izinPersonal || [];
+
+      if (currentTabIzin !== 'semua') {
+        filtered = filtered.filter(item => item.status === currentTabIzin);
+      }
+
+      // Filter asinkron izin milik guru login saat ini saja
+      if (currentUser) {
+        filtered = filtered.filter(item => item.nip === currentUser.nip);
+      }
+
+      filtered = filtered.filter(item => {
+        const tgl = new Date(item.tanggal);
+        const matchesTahun = tgl.getFullYear().toString() === text_tahun;
+        const matchesBulan = text_bulan === "semua" ? true : (tgl.getMonth() + 1).toString() === text_bulan;
+        return matchesTahun && matchesBulan;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Tidak ada riwayat izin personal pada kriteria ini.</p>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(item => {
+        let statusBadge = '';
+        if (item.status === 'Disetujui') {
+          statusBadge = '<span class="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px] font-bold px-2 py-0.5 rounded-md">Disetujui</span>';
+        } else if (item.status === 'Menunggu') {
+          statusBadge = '<span class="bg-amber-50 text-amber-700 border border-amber-100 text-[10px] font-bold px-2 py-0.5 rounded-md">Menunggu</span>';
+        } else {
+          statusBadge = '<span class="bg-rose-50 text-rose-700 border border-rose-100 text-[10px] font-bold px-2 py-0.5 rounded-md">Ditolak</span>';
+        }
+
+        return `
+          <div class="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm flex flex-col gap-2">
+            <div class="flex justify-between items-start">
+              <div>
+                <h4 class="text-xs font-bold text-slate-800 text-left">${item.jenis}</h4>
+                <p class="text-[9px] text-slate-400 mt-0.5 text-left">Tanggal: ${item.tanggal} | Jam: ${item.jam} WIB</p>
+              </div>
+              ${statusBadge}
+            </div>
+            <p class="text-[11px] text-slate-600 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-left">${item.keterangan}</p>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // PENGIRIMAN IZIN BARU
+    function kirimIzinPersonal(event) {
+      event.preventDefault();
+      const jenis = document.getElementById('izin-jenis').value;
+      const tanggal = document.getElementById('izin-tanggal').value;
+      const jam = document.getElementById('izin-jam').value;
+      const keterangan = document.getElementById('izin-keterangan').value;
+
+      showLoading(true, "Mengirim Pengajuan Izin...");
+
+      kirimIzinPersonalKeSheets(
+        currentUser.nip,
+        currentUser.nama,
+        currentUser.jabatan,
+        jenis,
+        tanggal,
+        jam,
+        keterangan
+      ).then((res) => {
+        showLoading(false);
+        bukaFormIzin(false);
+
+        // Reset Form
+        document.getElementById('izin-tanggal').value = '';
+        document.getElementById('izin-jam').value = '';
+        document.getElementById('izin-keterangan').value = '';
+
+        showCustomModal("success", "Izin Dikirim", "Izin personal berhasil diajukan ke Google Sheets dan menunggu persetujuan (Status di Kolom 8).");
+        
+        // Tarik ulang dari Sheets agar data terbarui
+        fetchIzinFromSheets(currentUser.nip);
+      });
+    }
+
     // ==========================================
     // LOGIKA LOGIN UTAMA DENGAN FALLBACK FAIL-SAFE
     // ==========================================
@@ -1563,6 +1812,12 @@
       
       // Ambil riwayat dinas luar milik guru tersebut secara asinkron dari Google Sheets
       fetchDLFromSheets(currentUser.nip);
+      
+      // Ambil riwayat izin personal milik guru tersebut secara asinkron dari Google Sheets (Sinkronisasi Kolom 8)
+      fetchIzinFromSheets(currentUser.nip);
+
+      // Tarik log presensi dinamis untuk memutakhirkan menu live harian hari ini
+      fetchLiveKehadiranFromSheets();
 
       if (usingSheets) {
         showCustomModal("success", "Sesi Terbuka", `Selamat bekerja, ${currentUser.nama}. Sesi Anda berhasil diselaraskan.`);
@@ -1758,6 +2013,7 @@
               
               // Masukkan data live presensi harian secara kumulatif (termasuk tanggal)
               database.liveKehadiran.unshift({
+                nip: currentUser.nip, // Simpan NIP untuk pencocokan dinamis!
                 nama: currentUser.nama,
                 jabatan: currentUser.jabatan,
                 tanggal: tglSekarang,
@@ -1783,6 +2039,7 @@
               if (btnLonceng) btnLonceng.className = "w-32 h-32 bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-full flex flex-col items-center justify-center shadow-lg hover:shadow-rose-200/50 transition-all transform hover:scale-105 active:scale-95";
               
               database.liveKehadiran.unshift({
+                nip: currentUser.nip, // Simpan NIP untuk pencocokan dinamis!
                 nama: currentUser.nama,
                 jabatan: currentUser.jabatan,
                 tanggal: tglSekarang,
@@ -1814,7 +2071,7 @@
             if (btnLonceng) btnLonceng.className = "w-32 h-32 bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-full flex flex-col items-center justify-center shadow-lg hover:shadow-rose-200/50 transition-all transform hover:scale-105 active:scale-95";
 
             // Update status live harian spesifik sesuai tanggal berjalan agar tidak merusak tanggal lain
-            const liveIdx = database.liveKehadiran.findIndex(item => item.nama === currentUser.nama && item.tanggal === tglSekarang);
+            const liveIdx = database.liveKehadiran.findIndex(item => item.nip === currentUser.nip && item.tanggal === tglSekarang);
             if (liveIdx !== -1) {
               database.liveKehadiran[liveIdx].status = "DL Active (Tiba)";
               database.liveKehadiran[liveIdx].jam = `${database.liveKehadiran[liveIdx].jam} | Tiba: ${jamSekarang}`;
@@ -1842,10 +2099,20 @@
             }
 
             // Update status live harian spesifik sesuai tanggal berjalan agar tidak merusak tanggal lain
-            const liveIdx = database.liveKehadiran.findIndex(item => item.nama === currentUser.nama && item.tanggal === tglSekarang);
+            const liveIdx = database.liveKehadiran.findIndex(item => item.nip === currentUser.nip && item.tanggal === tglSekarang);
             if (liveIdx !== -1) {
-              database.liveKehadiran[liveIdx].status += " & Pulang";
+              database.liveKehadiran[liveIdx].status += " & Pulang Selesai";
               database.liveKehadiran[liveIdx].jam += ` | Pulang: ${jamSekarang}`;
+            } else {
+              database.liveKehadiran.unshift({
+                nip: currentUser.nip,
+                nama: currentUser.nama,
+                jabatan: currentUser.jabatan,
+                tanggal: tglSekarang,
+                jam: jamSekarang,
+                status: "Pulang Selesai",
+                foto: currentUser.foto
+              });
             }
 
             const riwayatIdx = database.riwayatPresensi.findIndex(item => item.tanggal === tglSekarang);
@@ -1865,7 +2132,9 @@
           // SINKRONISASI AKTIFKAN VALIDASI LOCK GEOFENCE UNTUK UPDATE KEADAAN LONCENG TERBARU
           checkGeofenceDistance();
 
-          renderLivePresensi();
+          // Segarkan data dari Sheets secara background agar presensi guru lain ikut muncul
+          fetchLiveKehadiranFromSheets();
+
           renderRiwayatList();
         } else {
           showCustomModal("error", "Database Error", "Gagal menyimpan presensi ke spreadsheet Anda. Silakan hubungi tim IT.");
@@ -1873,67 +2142,117 @@
       });
     }
 
-    // LIVE PRESENSI (PEGAWAI LAIN DENGAN INDIKATOR TANGGAL BERJALAN)
+    // LIVE PRESENSI (PEGAWAI LAIN DENGAN INDIKATOR TANGGAL BERJALAN & KELOMPOK BELUM ABSEN)
     function renderLivePresensi() {
       const listEl = document.getElementById('live-list-pegawai');
       if (!listEl) return;
       const searchVal = document.getElementById('live-search') ? document.getElementById('live-search').value.toLowerCase() : "";
-      
-      const filtered = database.liveKehadiran.filter(p => p.nama.toLowerCase().includes(searchVal));
-      
-      const totalPegEl = document.getElementById('live-total-pegawai');
-      if (totalPegEl) totalPegEl.innerText = filtered.length;
 
-      if (filtered.length === 0) {
+      // Gabungkan master data guru dari spreadsheet & fallback lokal
+      let semuaGuru = {};
+      Object.assign(semuaGuru, localFallbackPegawai, dynamicPegawai);
+
+      const ClinicalNow = new Date();
+      const tglHariIni = ClinicalNow.toISOString().split('T')[0];
+
+      let listSudah = [];
+      let listBelum = [];
+
+      // Kelompokkan guru berdasarkan status presensi hari ini
+      for (const nip in semuaGuru) {
+        const guru = semuaGuru[nip];
+        if (searchVal && !guru.nama.toLowerCase().includes(searchVal)) {
+          continue; // Filter Pencarian
+        }
+
+        // Cari log masuk hari ini
+        const logMasuk = database.liveKehadiran.find(item => 
+          (item.nip === nip || item.nama === guru.nama) && 
+          item.tanggal === tglHariIni && 
+          (item.status.includes("MASUK") || item.status.includes("Hadir") || item.status.includes("Terlambat") || item.status.includes("DL Masuk") || item.status.includes("Dinas"))
+        );
+
+        // Cari log pulang hari ini
+        const logPulang = database.liveKehadiran.find(item => 
+          (item.nip === nip || item.nama === guru.nama) && 
+          item.tanggal === tglHariIni && 
+          (item.status.includes("PULANG") || item.status.includes("Pulang") || item.status.includes("Selesai"))
+        );
+
+        if (logMasuk || logPulang) {
+          listSudah.push({
+            guru: guru,
+            jamMasuk: logMasuk ? logMasuk.jam : "--:--",
+            jamPulang: logPulang ? logPulang.jam : "--:--",
+            statusText: logMasuk ? logMasuk.status : (logPulang ? logPulang.status : "Hadir")
+          });
+        } else {
+          listBelum.push(guru);
+        }
+      }
+
+      const totalPegEl = document.getElementById('live-total-pegawai');
+      if (totalPegEl) totalPegEl.innerText = listSudah.length;
+
+      let htmlContent = '';
+
+      // 1. TAMPILKAN GURU YANG SUDAH ABSEN (JAM MASUK TERISI)
+      if (listSudah.length > 0) {
+        htmlContent += `<div class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2.5 text-left px-1 mt-2 flex items-center gap-1.5"><i class="fa-solid fa-circle-check text-emerald-500"></i> Sudah Absen Hari Ini (${listSudah.length})</div>`;
+        htmlContent += listSudah.map(item => {
+          const isLate = item.statusText.includes("Terlambat");
+          const isDL = item.statusText.includes("DL") || item.statusText.includes("Dinas");
+          let badgeColor = "text-emerald-600 bg-emerald-50 border-emerald-100";
+          if (isLate) {
+            badgeColor = "text-rose-600 bg-rose-50 border-rose-100";
+          } else if (isDL) {
+            badgeColor = "text-cyan-600 bg-cyan-50 border-cyan-100";
+          }
+
+          return `
+            <div class="flex items-center gap-3 bg-white border border-slate-100 p-3 rounded-2xl shadow-sm mb-2">
+              <img src="${item.guru.foto || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}" class="w-10 h-10 rounded-xl object-cover" alt="Foto">
+              <div class="flex-1 min-w-0">
+                <h4 class="text-xs font-bold text-slate-800 truncate text-left">${item.guru.nama}</h4>
+                <p class="text-[10px] text-slate-500 font-semibold truncate text-left">${item.guru.jabatan}</p>
+              </div>
+              <div class="text-right shrink-0">
+                <div class="flex gap-1">
+                  <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-100">M: ${item.jamMasuk}</span>
+                  <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-100">P: ${item.jamPulang}</span>
+                </div>
+                <span class="text-[8px] text-slate-400 block mt-1 font-semibold uppercase">Status: ${item.statusText}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // 2. TAMPILKAN GURU YANG BELUM ABSEN
+      if (listBelum.length > 0) {
+        htmlContent += `<div class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2.5 text-left px-1 mt-4 flex items-center gap-1.5"><i class="fa-solid fa-circle-minus text-rose-400"></i> Belum Absen Hari Ini (${listBelum.length})</div>`;
+        htmlContent += listBelum.map(guru => {
+          return `
+            <div class="flex items-center gap-3 bg-white/60 border border-dashed border-slate-200 p-3 rounded-2xl mb-2 opacity-75">
+              <img src="${guru.foto || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}" class="w-10 h-10 rounded-xl object-cover grayscale" alt="Foto">
+              <div class="flex-1 min-w-0">
+                <h4 class="text-xs font-bold text-slate-600 truncate text-left">${guru.nama}</h4>
+                <p class="text-[10px] text-slate-400 font-semibold truncate text-left">${guru.jabatan}</p>
+              </div>
+              <div class="text-right shrink-0">
+                <span class="text-[9px] font-bold block px-2.5 py-1 rounded-lg border border-rose-100 bg-rose-50/50 text-rose-500">Belum Presensi</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      if (listSudah.length === 0 && listBelum.length === 0) {
         listEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Tidak ada pegawai yang cocok.</p>`;
         return;
       }
 
-      listEl.innerHTML = filtered.map(item => {
-        // Deteksi status terlambat atau DL
-        const isLate = item.status && item.status.includes("Terlambat");
-        const isDL = item.status && (item.status.includes("DL") || item.status.includes("Dinas"));
-        
-        let statusBadgeColor = "text-emerald-600 bg-emerald-50 border-emerald-100";
-        if (isLate) {
-          statusBadgeColor = "text-rose-600 bg-rose-50 border-rose-100";
-        } else if (isDL) {
-          statusBadgeColor = "text-cyan-600 bg-cyan-50 border-cyan-100";
-        }
-
-        // Format tanggal berjalan manual yang kebal terhadap pergeseran zona waktu
-        let displayTgl = "Hari Ini";
-        if (item.tanggal) {
-          try {
-            const tglParts = item.tanggal.split('-');
-            if (tglParts.length === 3) {
-              const bulanNama = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-              displayTgl = `${parseInt(tglParts[2])} ${bulanNama[parseInt(tglParts[1]) - 1]}`;
-            } else {
-              displayTgl = item.tanggal;
-            }
-          } catch (e) {
-            displayTgl = "Hari Ini";
-          }
-        }
-
-        return `
-          <div class="flex items-center gap-3 bg-slate-50 border border-slate-100 p-3 rounded-2xl">
-            <img src="${item.foto}" class="w-10 h-10 rounded-xl object-cover" alt="Foto">
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-1.5 justify-start">
-                <h4 class="text-xs font-bold text-slate-800 truncate text-left">${item.nama}</h4>
-                <span class="text-[9px] text-slate-400 font-bold shrink-0 bg-slate-100 px-1.5 py-0.5 rounded-md">(${displayTgl})</span>
-              </div>
-              <p class="text-[10px] text-slate-500 font-semibold truncate text-left mt-0.5">${item.jabatan}</p>
-            </div>
-            <div class="text-right shrink-0">
-              <span class="text-[10px] font-bold block px-2 py-1 rounded-lg border ${statusBadgeColor}">${item.status}</span>
-              <span class="text-[9px] text-slate-400 block mt-1">${item.jam} WIB</span>
-            </div>
-          </div>
-        `;
-      }).join('');
+      listEl.innerHTML = htmlContent;
     }
 
     function filterLivePresensi() {
