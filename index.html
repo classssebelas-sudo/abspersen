@@ -6,7 +6,7 @@
   <title>SIGAP - Presensi SMA Mifthaussaadah</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Font Awesome -->
+  <!-- Font Awesome (Memperbaiki rel="stylesheet" agar ikon dapat dimuat sempurna) -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -88,7 +88,7 @@
     </div>
   </div>
 
-  <!-- MODAL PENDAFTARAN GURU BARU (MODE DARURAT) -->
+  <!-- MODAL PENDAFTARAN GURU BARU (MODE DARURAT & PENYIMPANAN SPREADSHEET) -->
   <div id="register-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden px-4">
     <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl transform scale-95 transition-all">
       <div class="flex flex-col gap-4">
@@ -98,7 +98,7 @@
           </div>
           <div>
             <h3 class="text-base font-bold text-slate-800">Registrasi Guru Baru</h3>
-            <p class="text-[10px] text-slate-500">Koneksi Sheets terhambat? Daftarkan profil Anda secara instan.</p>
+            <p class="text-[10px] text-slate-500">Mendaftarkan profil Anda secara permanen ke Google Sheets.</p>
           </div>
         </div>
         
@@ -118,7 +118,7 @@
           <div>
             <label class="block text-xs font-bold text-slate-600 mb-1.5 uppercase">Pilih Avatar Profil</label>
             <div class="grid grid-cols-4 gap-2">
-              <label class="cursor-pointer border-2 border-slate-200 rounded-xl overflow-hidden p-1 flex items-center justify-center hover:border-emerald-500 transition-all select-avatar" id="label-av-1">
+              <label class="cursor-pointer border-2 border-slate-200 rounded-xl overflow-hidden p-1 flex items-center justify-center shadow-md select-avatar" id="label-av-1">
                 <input type="radio" name="reg-avatar" value="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150" checked class="hidden" onclick="selectAvatarStyle(1)">
                 <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150" class="w-10 h-10 rounded-full object-cover">
               </label>
@@ -148,10 +148,23 @@
   <!-- 1. HALAMAN LOGIN (TAMPILAN AWAL) -->
   <div id="page-login" class="flex-1 flex flex-col items-center justify-center px-6 py-12">
     <div class="w-full max-w-md bg-white rounded-3xl p-8 shadow-xl border border-slate-100 flex flex-col items-center">
-      <!-- Logo School di Tengah -->
-      <div class="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mb-6 shadow-md">
-        <i class="fa-solid fa-school text-emerald-600 text-4xl"></i>
+      
+      <!-- Input File Tersembunyi untuk Unggah Logo Sekolah secara Manual -->
+      <input type="file" id="upload-logo-input" accept="image/*" class="hidden" onchange="handleLogoUpload(event)">
+      
+      <!-- Logo School di Tengah (Sekarang Interaktif) -->
+      <div onclick="triggerLogoUpload()" title="Klik untuk mengganti logo sekolah" class="group relative w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mb-6 shadow-md cursor-pointer overflow-hidden transition-all duration-300 hover:bg-emerald-200 border-2 border-emerald-50 hover:border-emerald-300">
+        <!-- Tampilan Default (Ikon) atau Gambar yang diunggah -->
+        <div id="school-logo-preview" class="w-full h-full flex items-center justify-center">
+          <i class="fa-solid fa-school text-emerald-600 text-4xl"></i>
+        </div>
+        <!-- Overlay saat kursor diarahkan (hover) -->
+        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-bold">
+          <i class="fa-solid fa-camera text-base mb-1"></i>
+          GANTI LOGO
+        </div>
       </div>
+      
       <h2 class="text-2xl font-bold text-slate-800 mb-1">SIGAP</h2>
       <p class="text-xs text-slate-500 font-semibold mb-8 tracking-wider">SMA MIFTHAUSSAADAH</p>
       
@@ -184,7 +197,8 @@
     <!-- Header Aplikasi -->
     <header class="bg-white border-b border-slate-100 sticky top-0 z-40 px-5 py-4 flex items-center justify-between">
       <div class="flex items-center gap-2.5">
-        <div class="w-9 h-9 bg-emerald-100 rounded-lg flex items-center justify-center text-emerald-600 font-bold">
+        <!-- Logo Header Sekolah (Dapat berubah sesuai logo login) -->
+        <div id="header-school-logo-container" class="w-9 h-9 bg-emerald-100 rounded-lg flex items-center justify-center text-emerald-600 font-bold overflow-hidden">
           <i class="fa-solid fa-school"></i>
         </div>
         <div>
@@ -235,22 +249,29 @@
           <!-- Lonceng Presensi Utama -->
           <div class="relative flex flex-col items-center justify-center py-6">
             <!-- Tombol Lonceng (Secara default dinonaktifkan sampai lokasi divalidasi) -->
-            <button id="btn-lonceng" disabled onclick="bukaKameraPresensi()" class="w-32 h-32 bg-slate-100 text-slate-400 rounded-full flex flex-col items-center justify-center shadow-lg transition-all transform opacity-60 cursor-not-allowed">
-              <i class="fa-solid fa-bell text-5xl" id="icon-lonceng"></i>
+            <button id="btn-lonceng" disabled onclick="bukaKameraPresensi()" class="w-32 h-32 bg-slate-100 text-slate-400 rounded-full flex flex-col items-center justify-center shadow-lg transition-all transform id-btn-lonceng-anim hover:scale-105 active:scale-95">
+              <i class="fa-solid fa-bell text-5xl bell-ring" id="icon-lonceng"></i>
               <span class="text-xs font-extrabold mt-2 tracking-wide" id="status-lonceng-text">MASUK</span>
             </button>
             <p id="btn-helper-text" class="text-[10px] text-slate-400 mt-4 text-center font-medium">Dekati lokasi SMA Mifthaussaadah (Radius 100m) untuk mengaktifkan tombol presensi.</p>
           </div>
 
-          <!-- Informasi Jam Kerja & Presensi Terkini -->
-          <div class="grid grid-cols-2 gap-4 w-full mt-6 pt-6 border-t border-slate-100">
+          <!-- Informasi Jam Kerja & Presensi Terkini (Mendukung 3 Kolom Khusus Dinas Luar) -->
+          <div id="informasi-jam-grid" class="grid grid-cols-2 gap-4 w-full mt-6 pt-6 border-t border-slate-100">
             <div class="bg-slate-50 p-4 rounded-2xl text-center border border-slate-100">
               <span class="text-[10px] font-bold text-slate-400 uppercase">Jam Masuk (06.30)</span>
-              <p id="jam-masuk-realtime" class="text-lg font-bold text-emerald-600 mt-1">--:--</p>
+              <p id="jam-masuk-realtime" class="text-base font-bold text-emerald-600 mt-1">--:--</p>
             </div>
+            
+            <!-- Kolom Tambahan Tiba Lokasi (Default tersembunyi, hanya untuk DL) -->
+            <div id="jam-tiba-kolom" class="bg-slate-50 p-4 rounded-2xl text-center border border-slate-100 hidden">
+              <span class="text-[10px] font-bold text-slate-400 uppercase">Tiba di Lokasi</span>
+              <p id="jam-tiba-realtime" class="text-base font-bold text-cyan-600 mt-1">--:--</p>
+            </div>
+
             <div class="bg-slate-50 p-4 rounded-2xl text-center border border-slate-100">
               <span class="text-[10px] font-bold text-slate-400 uppercase">Jam Pulang (15.00)</span>
-              <p id="jam-pulang-realtime" class="text-lg font-bold text-rose-600 mt-1">--:--</p>
+              <p id="jam-pulang-realtime" class="text-base font-bold text-rose-600 mt-1">--:--</p>
             </div>
           </div>
         </div>
@@ -691,7 +712,7 @@
     // ==========================================
     // UTAMA: KONFIGURASI GOOGLE SPREADSHEET (API)
     // ==========================================
-    const SPREADSHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxHPKi82-uZEclC93wsMNpHjI8HmvwnPZ-8czJWs7MECaoKrF_QkLOMkBc9criPnWy4Kw/exec"; 
+    const SPREADSHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzIPop_UzimD0uahrCOHc9aRn5Zo-KzuyGbdE3xHYeV8G46IGf3UnpDVWRQgC-w6iZkjQ/exec"; 
 
     const KOORDINAT_SEKOLAH = [-6.3562831731423195, 106.5287926364578]; // SMA Mifthaussaadah (Titik Lock Geofence)
     let userLocation = null; 
@@ -723,23 +744,23 @@
     // Database Simulasi Logika Menu Lainnya (Memory Session)
     const database = {
       liveKehadiran: [
-        { nama: "Budi Santoso, S.Kom", jabatan: "Guru TI", jam: "06:15", status: "Hadir", foto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=60" },
-        { nama: "Rina Wijaya, S.Pd", jabatan: "Guru Matematika", jam: "06:22", status: "Hadir", foto: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=60" },
-        { nama: "Hendro, M.Pd", jabatan: "Guru Sejarah", jam: "06:45", status: "Terlambat (15m)", foto: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=60" },
+        { nama: "Budi Santoso, S.Kom", jabatan: "Guru TI", jam: "06:15", status: "Hadir Tepat Waktu", foto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=60" },
+        { nama: "Rina Wijaya, S.Pd", jabatan: "Guru Matematika", jam: "06:22", status: "Hadir Tepat Waktu", foto: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=60" },
+        { nama: "Hendro, M.Pd", jabatan: "Guru Sejarah", jam: "06:45", status: "Terlambat (15 mnt)", foto: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=60" },
         { nama: "Lilis Marlina, S.Ag", jabatan: "Guru Agama", jam: "--:--", status: "Dinas Luar", foto: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=60" }
       ],
       dinasLuar: [
-        { id: 1, tipe: "Dinas Luar Full", tglMulai: "2026-05-18", tglSelesai: "2026-05-20", keterangan: "Workshop Kurikulum Merdeka di Dinas Pendidikan", status: "Disetujui" },
-        { id: 2, tipe: "Dinas Luar Masuk Kerja", tglMulai: "2026-05-10", tglSelesai: "2026-05-10", keterangan: "Mengantar Siswa Olimpiade Sains", status: "Disetujui" }
+        { id: 1, nip: "19890101", tipe: "Dinas Luar Full", tglMulai: "2026-05-18", tglSelesai: "2026-05-25", keterangan: "Workshop Kurikulum Merdeka di Dinas Pendidikan", status: "Disetujui" },
+        { id: 2, nip: "19920512", tipe: "Dinas Luar Masuk Kerja", tglMulai: "2026-05-10", tglSelesai: "2026-05-10", keterangan: "Mengantar Siswa Olimpiade Sains", status: "Disetujui" }
       ],
       izinPersonal: [
         { id: 1, jenis: "Izin Terlambat Masuk", tanggal: "2026-05-05", jam: "08:30", keterangan: "Kendala Servis Motor Rutin", status: "Disetujui" }
       ],
       riwayatPresensi: [
-        { tanggal: "2026-05-15", hari: "Jumat", masuk: "06:20", pulang: "15:05", status: "Hadir Tepat Waktu" },
-        { tanggal: "2026-05-14", hari: "Kamis", masuk: "06:28", pulang: "15:10", status: "Hadir Tepat Waktu" },
-        { tanggal: "2026-05-13", hari: "Rabu", masuk: "06:40", pulang: "15:02", status: "Terlambat (10 mnt)" },
-        { tanggal: "2026-05-12", hari: "Selasa", masuk: "06:15", pulang: "15:00", status: "Hadir Tepat Waktu" }
+        { tanggal: "2026-05-15", hari: "Jumat", masuk: "06:20", tiba: "--:--", pulang: "15:05", status: "Hadir Tepat Waktu" },
+        { tanggal: "2026-05-14", hari: "Kamis", masuk: "06:28", tiba: "--:--", pulang: "15:10", status: "Hadir Tepat Waktu" },
+        { tanggal: "2026-05-13", hari: "Rabu", masuk: "06:45", tiba: "--:--", pulang: "15:02", status: "Terlambat (15 mnt)" },
+        { tanggal: "2026-05-12", hari: "Selasa", masuk: "06:15", tiba: "--:--", pulang: "15:00", status: "Hadir Tepat Waktu" }
       ]
     };
 
@@ -747,6 +768,7 @@
       updateRealtimeClock();
       setInterval(updateRealtimeClock, 1000);
       setupRealGPS();
+      loadSavedSchoolLogo(); // Muat logo sekolah yang pernah disimpan sebelumnya
     };
 
     function updateRealtimeClock() {
@@ -768,8 +790,86 @@
       return date.toLocaleDateString('id-ID', options);
     }
 
+    // Memperbaiki potensi runtime crash dengan memastikan split string aman
     function ClinicalFormatTime(date) {
-      return date.toTimeString().split(' ')[0];
+      try {
+        return date.toTimeString().split(' ')[0];
+      } catch (e) {
+        return "00:00:00";
+      }
+    }
+
+    // ==========================================
+    // LOGIKA UNTUK UNGGAN LOGO SEKOLAH MANUAl
+    // ==========================================
+    function triggerLogoUpload() {
+      const input = document.getElementById('upload-logo-input');
+      if (input) input.click();
+    }
+
+    function handleLogoUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        showCustomModal("error", "Format Tidak Valid", "Pastikan file yang diunggah berupa gambar (PNG, JPG, SVG, dll).");
+        return;
+      }
+
+      showLoading(true, "Mengompresi Logo...");
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const base64Data = e.target.result;
+        
+        // Simpan Base64 ke LocalStorage agar logo menetap meskipun di-refresh
+        try {
+          localStorage.setItem('sigap_school_logo', base64Data);
+        } catch (err) {
+          console.warn("Gagal menyimpan logo ke localStorage:", err);
+        }
+        
+        // Terapkan logo baru secara real-time
+        applySchoolLogo(base64Data);
+        
+        showLoading(false);
+        showCustomModal("success", "Logo Diperbarui", "Logo sekolah berhasil diunggah dan diperbarui secara instan.");
+      };
+      
+      reader.onerror = function() {
+        showLoading(false);
+        showCustomModal("error", "Error Membaca File", "Gagal membaca file gambar yang diunggah.");
+      };
+
+      reader.readAsDataURL(file);
+    }
+
+    function applySchoolLogo(logoBase64) {
+      if (!logoBase64) return;
+
+      // Update Tampilan Logo Halaman Login
+      const loginLogoContainer = document.getElementById('school-logo-preview');
+      if (loginLogoContainer) {
+        loginLogoContainer.innerHTML = `<img src="${logoBase64}" class="w-full h-full object-contain p-2" alt="Logo Sekolah">`;
+      }
+
+      // Update Tampilan Logo Header Utama di Dasbor
+      const headerLogoContainer = document.getElementById('header-school-logo-container');
+      if (headerLogoContainer) {
+        headerLogoContainer.innerHTML = `<img src="${logoBase64}" class="w-full h-full object-contain p-1" alt="Logo Sekolah">`;
+        headerLogoContainer.className = "w-9 h-9 bg-white rounded-lg flex items-center justify-center border border-slate-100 overflow-hidden";
+      }
+    }
+
+    function loadSavedSchoolLogo() {
+      try {
+        const savedLogo = localStorage.getItem('sigap_school_logo');
+        if (savedLogo) {
+          applySchoolLogo(savedLogo);
+        }
+      } catch (e) {
+        console.warn("Akses localStorage dibatasi di lingkungan sandbox:", e);
+      }
     }
 
     // ==========================================
@@ -792,26 +892,36 @@
 
       // Gunakan Promise dengan pembatasan waktu (Timeout) untuk mencegah loading selamanya
       return new Promise((resolve) => {
-        jsonpResolve = resolve;
+        let timeoutId = null;
+        let script = null;
         
+        jsonpResolve = resolve;
+
+        // Fungsi pembersihan objek yang aman dari Temporal Dead Zone (TDZ)
+        const cleanup = () => {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
+          const oldScript = document.getElementById('sigap-jsonp-script');
+          if (oldScript) {
+            try {
+              oldScript.remove();
+            } catch (e) {
+              console.warn("Gagal membersihkan tag script JSONP:", e);
+            }
+          }
+        };
+
         // Atur timeout selama 3 detik. Jika lambat, langsung gunakan database lokal.
-        const timeoutId = setTimeout(() => {
+        timeoutId = setTimeout(() => {
           console.warn("Sinkronisasi Google Sheets melewati batas waktu. Menggunakan mode lokal.");
           cleanup();
           resolve(null); 
         }, 3000);
 
-        function cleanup() {
-          clearTimeout(timeoutId);
-          const oldScript = document.getElementById('sigap-jsonp-script');
-          if (oldScript) {
-            oldScript.remove();
-          }
-        }
-
         try {
           // Buat elemen script dinamis untuk memanggil API JSONP
-          const script = document.createElement('script');
+          script = document.createElement('script');
           script.id = 'sigap-jsonp-script';
           script.src = `${SPREADSHEET_WEB_APP_URL}?action=get_users&callback=handleSIGAPUsersCallback&ts=${Date.now()}`;
           
@@ -832,7 +942,11 @@
       }).then(result => {
         // Bersihkan tag script setelah proses selesai
         const oldScript = document.getElementById('sigap-jsonp-script');
-        if (oldScript) oldScript.remove();
+        if (oldScript) {
+          try {
+            oldScript.remove();
+          } catch(e) {}
+        }
 
         if (result && result.status === "success" && result.users) {
           return result.users;
@@ -842,21 +956,48 @@
     }
 
     // ==========================================
-    // LOGIKA GPS PERANGKAT ASLI
+    // MEMERIKSA STATUS DINAS LUAR (DL) AKTIF HARI INI
+    // ==========================================
+    function getActiveDinasLuar() {
+      if (!currentUser) return null;
+      // Format tanggal lokal hari ini menjadi YYYY-MM-DD
+      const localToday = new Date();
+      const offset = localToday.getTimezoneOffset();
+      const todayFormatted = new Date(localToday.getTime() - (offset*60*1000)).toISOString().split('T')[0];
+      
+      // Temukan pengajuan Dinas Luar yang disetujui untuk guru ini dan tanggal hari ini
+      if (!database.dinasLuar) return null;
+      return database.dinasLuar.find(item => 
+        item.nip === currentUser.nip && 
+        item.status === "Disetujui" && 
+        todayFormatted >= item.tglMulai && 
+        todayFormatted <= item.tglSelesai
+      );
+    }
+
+    // ==========================================
+    // LOGIKA GPS PERANGKAT ASLI (DENGAN BEBAS LOKASI UNTUK DINAS LUAR)
     // ==========================================
     function setupRealGPS() {
       if (navigator.geolocation) {
-        watchId = navigator.geolocation.watchPosition(
-          (position) => {
-            userLocation = [position.coords.latitude, position.coords.longitude];
-            checkGeofenceDistance();
-          },
-          (error) => {
-            console.warn("Satelit GPS Gagal dikoordinasikan:", error.message);
-            updateGPSStatus("error", `GPS Error: Perangkat belum mengizinkan akses lokasi.`);
-          },
-          { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-        );
+        try {
+          watchId = navigator.geolocation.watchPosition(
+            (position) => {
+              userLocation = [position.coords.latitude, position.coords.longitude];
+              checkGeofenceDistance();
+            },
+            (error) => {
+              console.warn("Satelit GPS Gagal dikoordinasikan:", error.message);
+              // Tetap lakukan update status jika seandainya guru punya Dinas Luar aktif (bebas lokasi)
+              checkGeofenceDistance();
+            },
+            { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+          );
+        } catch (err) {
+          console.warn("Gagal menginisialisasi Geolocation watchPosition di lingkungan sandbox:", err);
+          updateGPSStatus("error", "Geolokasi dibatasi oleh browser/iframe.");
+          checkGeofenceDistance();
+        }
       } else {
         updateGPSStatus("error", "Perangkat Anda tidak mendukung modul Geolocation.");
       }
@@ -878,17 +1019,57 @@
     }
 
     function checkGeofenceDistance() {
-      if (!userLocation) return;
-      
-      const jarak = calculateDistance(userLocation[0], userLocation[1], KOORDINAT_SEKOLAH[0], KOORDINAT_SEKOLAH[1]);
+      const activeDL = getActiveDinasLuar();
       const btnLonceng = document.getElementById('btn-lonceng');
       const helperText = document.getElementById('btn-helper-text');
+
+      // JIKA GURU MEMILIKI DINAS LUAR AKTIF, BEBASKAN RADIUS GEOFENCING!
+      if (activeDL) {
+        updateGPSStatus("success", `Status: Dinas Luar Aktif (${activeDL.tipe}). Presensi diperbolehkan di mana saja.`);
+        if (btnLonceng) {
+          btnLonceng.disabled = false;
+          
+          // Sesuaikan skema warna dinamis sesuai state presensi 3 tahap khusus DL
+          const currentStageEl = document.getElementById('status-lonceng-text');
+          const currentStage = currentStageEl ? currentStageEl.innerText : "MASUK";
+          if (currentStage === "MASUK") {
+            btnLonceng.className = "w-32 h-32 bg-emerald-100 hover:bg-emerald-200 text-emerald-600 rounded-full flex flex-col items-center justify-center shadow-lg hover:shadow-emerald-200/50 transition-all transform hover:scale-105 active:scale-95";
+          } else if (currentStage === "TIBA") {
+            btnLonceng.className = "w-32 h-32 bg-cyan-100 hover:bg-cyan-200 text-cyan-600 rounded-full flex flex-col items-center justify-center shadow-lg hover:shadow-cyan-200/50 transition-all transform hover:scale-105 active:scale-95";
+          } else if (currentStage === "PULANG") {
+            btnLonceng.className = "w-32 h-32 bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-full flex flex-col items-center justify-center shadow-lg hover:shadow-rose-200/50 transition-all transform hover:scale-105 active:scale-95";
+          }
+        }
+        if (helperText) {
+          helperText.className = "text-[10px] text-emerald-600 mt-4 text-center font-bold";
+          helperText.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> Mode Dinas Luar Aktif (${activeDL.tipe}). Alur Presensi: MASUK $\\rightarrow$ TIBA $\\rightarrow$ PULANG.`;
+        }
+        return;
+      }
+
+      // JIKA TIDAK ADA DINAS LUAR, JALANKAN VALIDASI LOKASI NORMAL (100 meter)
+      if (!userLocation) {
+        updateGPSStatus("error", "Mencari sinyal GPS perangkat Anda...");
+        if (btnLonceng) {
+          btnLonceng.disabled = true;
+          btnLonceng.className = "w-32 h-32 bg-slate-100 text-slate-400 rounded-full flex flex-col items-center justify-center shadow-lg transition-all transform opacity-60 cursor-not-allowed";
+        }
+        return;
+      }
+      
+      const jarak = calculateDistance(userLocation[0], userLocation[1], KOORDINAT_SEKOLAH[0], KOORDINAT_SEKOLAH[1]);
 
       if (jarak <= 100) {
         updateGPSStatus("success", `Lokasi Terverifikasi (Berjarak ${Math.round(jarak)}m dari Sekolah)`);
         if (btnLonceng) {
           btnLonceng.disabled = false;
-          btnLonceng.className = "w-32 h-32 bg-emerald-100 hover:bg-emerald-200 text-emerald-600 rounded-full flex flex-col items-center justify-center shadow-lg hover:shadow-emerald-200/50 transition-all transform hover:scale-105 active:scale-95";
+          const currentStageEl = document.getElementById('status-lonceng-text');
+          const currentStage = currentStageEl ? currentStageEl.innerText : "MASUK";
+          if (currentStage === "MASUK") {
+            btnLonceng.className = "w-32 h-32 bg-emerald-100 hover:bg-emerald-200 text-emerald-600 rounded-full flex flex-col items-center justify-center shadow-lg hover:shadow-emerald-200/50 transition-all transform hover:scale-105 active:scale-95";
+          } else {
+            btnLonceng.className = "w-32 h-32 bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-full flex flex-col items-center justify-center shadow-lg hover:shadow-rose-200/50 transition-all transform hover:scale-105 active:scale-95";
+          }
         }
         if (helperText) {
           helperText.className = "text-[10px] text-emerald-600 mt-4 text-center font-bold";
@@ -964,6 +1145,38 @@
       }
     }
 
+    // ==========================================
+    // KIRIM REGISTRASI GURU BARU KE SPREADSHEET
+    // ==========================================
+    async function kirimRegistrasiKeSpreadsheet(nip, nama, jabatan, foto) {
+      if (!SPREADSHEET_WEB_APP_URL) {
+        return { success: true, localOnly: true };
+      }
+
+      const payload = {
+        action: "register_guru",
+        nip: nip,
+        nama: nama,
+        jabatan: jabatan,
+        foto: foto
+      };
+
+      try {
+        await fetch(SPREADSHEET_WEB_APP_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+        return { success: true };
+      } catch (error) {
+        console.error("Gagal mengirim data registrasi ke Google Sheets:", error);
+        return { success: false, error: error.message };
+      }
+    }
+
     // MODAL POP-UP CUSTOM
     function showCustomModal(type, title, message) {
       const modal = document.getElementById('custom-modal');
@@ -971,6 +1184,8 @@
       const icon = document.getElementById('modal-icon');
       const elTitle = document.getElementById('modal-title');
       const elMsg = document.getElementById('modal-message');
+
+      if (!modal || !iconContainer || !icon || !elTitle || !elMsg) return;
 
       elTitle.innerText = title;
       elMsg.innerText = message;
@@ -988,12 +1203,14 @@
 
     // AKSI TUTUP MODAL
     function closeModal() {
-      document.getElementById('custom-modal').classList.add('hidden');
+      const modal = document.getElementById('custom-modal');
+      if (modal) modal.classList.add('hidden');
     }
 
     function showLoading(show, text = "Memproses Data...") {
       const overlay = document.getElementById('loading-overlay');
       const textEl = document.getElementById('loading-text');
+      if (!overlay) return;
       if (textEl) textEl.innerText = text;
       
       if (show) {
@@ -1007,14 +1224,19 @@
     function renderProfileMenu() {
       if (!currentUser) return;
       
-      document.getElementById('akun-foto').src = currentUser.foto;
-      document.getElementById('akun-nama').innerText = currentUser.nama;
-      document.getElementById('akun-nip-text').innerText = "NIP. " + currentUser.nip;
-      document.getElementById('akun-jabatan').innerText = currentUser.jabatan;
+      const elFoto = document.getElementById('akun-foto');
+      const elNama = document.getElementById('akun-nama');
+      const elNip = document.getElementById('akun-nip-text');
+      const elJabatan = document.getElementById('akun-jabatan');
+
+      if (elFoto) elFoto.src = currentUser.foto;
+      if (elNama) elNama.innerText = currentUser.nama;
+      if (elNip) elNip.innerText = "NIP. " + currentUser.nip;
+      if (elJabatan) elJabatan.innerText = currentUser.jabatan;
     }
 
     // ==========================================
-    // LOGIKA PENDAFTARAN DARURAT (GURU BARU)
+    // LOGIKA PENDAFTARAN DARURAT & DATABASE ONLINE
     // ==========================================
     let selectedAvatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150";
 
@@ -1022,60 +1244,71 @@
       const labels = ['label-av-1', 'label-av-2', 'label-av-3', 'label-av-4'];
       labels.forEach((id, idx) => {
         const el = document.getElementById(id);
-        if (idx === index - 1) {
-          el.className = "cursor-pointer border-2 border-emerald-500 rounded-xl overflow-hidden p-1 flex items-center justify-center shadow-md select-avatar scale-105 transition-all";
-          const input = el.querySelector('input');
-          if (input) selectedAvatarUrl = input.value;
-        } else {
-          el.className = "cursor-pointer border-2 border-slate-200 rounded-xl overflow-hidden p-1 flex items-center justify-center hover:border-emerald-500 transition-all select-avatar opacity-70";
+        if (el) {
+          if (idx === index - 1) {
+            el.className = "cursor-pointer border-2 border-emerald-500 rounded-xl overflow-hidden p-1 flex items-center justify-center shadow-md select-avatar scale-105 transition-all";
+            const input = el.querySelector('input');
+            if (input) selectedAvatarUrl = input.value;
+          } else {
+            el.className = "cursor-pointer border-2 border-slate-200 rounded-xl overflow-hidden p-1 flex items-center justify-center hover:border-emerald-500 transition-all select-avatar opacity-70";
+          }
         }
       });
     }
 
     function closeRegisterModal() {
-      document.getElementById('register-modal').classList.add('hidden');
+      const modal = document.getElementById('register-modal');
+      if (modal) modal.classList.add('hidden');
     }
 
-    function handleRegisterDarurat(event) {
+    // PROSES DAFTAR BARU & SIMPAN KE SPREADSHEET
+    async function handleRegisterDarurat(event) {
       event.preventDefault();
       const nip = document.getElementById('reg-nip').value;
       const nama = document.getElementById('reg-nama').value.trim();
       const jabatan = document.getElementById('reg-jabatan').value.trim();
 
-      showLoading(true, "Mendaftarkan Profil...");
+      showLoading(true, "Menyimpan Guru ke Google Sheets secara permanen...");
 
-      setTimeout(() => {
-        showLoading(false);
-        closeRegisterModal();
+      const res = await kirimRegistrasiKeSpreadsheet(nip, nama, jabatan, selectedAvatarUrl);
 
-        // Daftarkan ke database lokal memori
-        const newUser = {
-          nip: nip,
-          nama: nama,
-          jabatan: jabatan,
-          foto: selectedAvatarUrl
-        };
+      showLoading(false);
+      closeRegisterModal();
 
-        dynamicPegawai[nip] = newUser;
-        currentUser = newUser;
+      const newUser = {
+        nip: nip,
+        nama: nama,
+        jabatan: jabatan,
+        foto: selectedAvatarUrl
+      };
 
-        // Tampilkan ke dasbor
-        document.getElementById('p-nama').innerText = currentUser.nama;
-        document.getElementById('p-jabatan').innerText = currentUser.jabatan;
-        document.getElementById('p-foto').src = currentUser.foto;
+      dynamicPegawai[nip] = newUser;
+      currentUser = newUser;
 
-        renderProfileMenu();
+      const pNama = document.getElementById('p-nama');
+      const pJabatan = document.getElementById('p-jabatan');
+      const pFoto = document.getElementById('p-foto');
 
-        document.getElementById('page-login').classList.add('hidden');
-        document.getElementById('main-dashboard').classList.remove('hidden');
+      if (pNama) pNama.innerText = currentUser.nama;
+      if (pJabatan) pJabatan.innerText = currentUser.jabatan;
+      if (pFoto) pFoto.src = currentUser.foto;
 
-        renderLivePresensi();
-        renderRiwayatList();
-        filterDinasLuar();
-        filterIzinPersonal();
+      renderProfileMenu();
 
-        showCustomModal("success", "Registrasi Sukses!", `Selamat bekerja ${currentUser.nama}! Profil Anda terdaftar sebagai guru baru di sistem memori lokal.`);
-      }, 1000);
+      const pageLogin = document.getElementById('page-login');
+      const mainDashboard = document.getElementById('main-dashboard');
+      if (pageLogin) pageLogin.classList.add('hidden');
+      if (mainDashboard) mainDashboard.classList.remove('hidden');
+
+      renderLivePresensi();
+      renderRiwayatList();
+      filterDinasLuar();
+      filterIzinPersonal();
+      
+      // Update GPS & Geofencing status sesegera mungkin
+      checkGeofenceDistance();
+
+      showCustomModal("success", "Registrasi Berhasil!", `Selamat datang, ${currentUser.nama}. Data Anda telah disimpan secara permanen di database Google Sheets. Login selanjutnya langsung dikenali!`);
     }
 
     // ==========================================
@@ -1083,10 +1316,15 @@
     // ==========================================
     async function handleLogin(event) {
       event.preventDefault();
-      const nip = document.getElementById('login-nip').value.trim();
-      const pass = document.getElementById('login-password').value;
+      const nipEl = document.getElementById('login-nip');
+      const nip = nipEl ? nipEl.value.trim() : "";
 
-      showLoading(true, "Sinkronisasi Akun...");
+      if (!nip) {
+        showCustomModal("error", "Error", "Silakan isi NIP / Username Anda.");
+        return;
+      }
+
+      showLoading(true, "Sinkronisasi Akun dari Google Sheets...");
 
       const fetchedGuru = await fetchGuruFromSheets();
       
@@ -1106,32 +1344,54 @@
       if (dynamicPegawai[nip]) {
         currentUser = dynamicPegawai[nip];
         
-        document.getElementById('p-nama').innerText = currentUser.nama;
-        document.getElementById('p-jabatan').innerText = currentUser.jabatan;
-        document.getElementById('p-foto').src = currentUser.foto;
+        const pNama = document.getElementById('p-nama');
+        const pJabatan = document.getElementById('p-jabatan');
+        const pFoto = document.getElementById('p-foto');
+
+        if (pNama) pNama.innerText = currentUser.nama;
+        if (pJabatan) pJabatan.innerText = currentUser.jabatan;
+        if (pFoto) pFoto.src = currentUser.foto;
 
         renderProfileMenu();
 
-        document.getElementById('page-login').classList.add('hidden');
-        document.getElementById('main-dashboard').classList.remove('hidden');
+        const pageLogin = document.getElementById('page-login');
+        const mainDashboard = document.getElementById('main-dashboard');
+        if (pageLogin) pageLogin.classList.add('hidden');
+        if (mainDashboard) mainDashboard.classList.remove('hidden');
+
+        // Reset visualisasi Beranda khusus DL (Kondisi default)
+        const isDL = getActiveDinasLuar();
+        const tibaKolom = document.getElementById('jam-tiba-kolom');
+        const gridContainer = document.getElementById('informasi-jam-grid');
+        
+        if (isDL) {
+          if (tibaKolom) tibaKolom.classList.remove('hidden');
+          if (gridContainer) gridContainer.className = "grid grid-cols-3 gap-3 w-full mt-6 pt-6 border-t border-slate-100";
+        } else {
+          if (tibaKolom) tibaKolom.classList.add('hidden');
+          if (gridContainer) gridContainer.className = "grid grid-cols-2 gap-4 w-full mt-6 pt-6 border-t border-slate-100";
+        }
 
         renderLivePresensi();
         renderRiwayatList();
         filterDinasLuar();
         filterIzinPersonal();
+        
+        // Update GPS & Geofencing status sesegera mungkin
+        checkGeofenceDistance();
 
         if (usingSheets) {
-          showCustomModal("success", "Sesi Terbuka (Online)", `Selamat bekerja, ${currentUser.nama}. Data profil Anda sinkron.`);
+          showCustomModal("success", "Sesi Terbuka (Online)", `Selamat bekerja, ${currentUser.nama}. Data profil Anda sinkron dengan Google Sheets.`);
         } else {
           showCustomModal("success", "Sesi Terbuka (Lokal)", `Berhasil masuk menggunakan basis data cadangan lokal.`);
         }
       } else {
-        // SOLUSI CERDAS: Jika NIP tidak terdaftar (karena sheets gagal ditarik atau belum diinput admin)
-        // Kita tawarkan pendaftaran mandiri (Registrasi Darurat) agar pengguna tidak terhambat login!
-        document.getElementById('reg-nip').value = nip;
-        // Inisialisasi visual pilihan avatar pertama
+        const regNipEl = document.getElementById('reg-nip');
+        if (regNipEl) regNipEl.value = nip;
+        
         selectAvatarStyle(1);
-        document.getElementById('register-modal').classList.remove('hidden');
+        const regModal = document.getElementById('register-modal');
+        if (regModal) regModal.classList.remove('hidden');
       }
     }
 
@@ -1139,10 +1399,15 @@
       showLoading(true, "Mengakhiri Sesi...");
       setTimeout(() => {
         currentUser = null;
-        document.getElementById('main-dashboard').classList.add('hidden');
-        document.getElementById('page-login').classList.remove('hidden');
-        document.getElementById('login-nip').value = '';
-        document.getElementById('login-password').value = '';
+        const mainDashboard = document.getElementById('main-dashboard');
+        const pageLogin = document.getElementById('page-login');
+        const loginNip = document.getElementById('login-nip');
+        const loginPass = document.getElementById('login-password');
+
+        if (mainDashboard) mainDashboard.classList.add('hidden');
+        if (pageLogin) pageLogin.classList.remove('hidden');
+        if (loginNip) loginNip.value = '';
+        if (loginPass) loginPass.value = '';
         tutupKamera();
         showLoading(false);
       }, 800);
@@ -1178,37 +1443,54 @@
 
     // KAMERA GURU ABSENSI
     async function bukaKameraPresensi() {
-      if (!userLocation) {
+      const activeDL = getActiveDinasLuar();
+      
+      // Jika tidak punya Dinas Luar aktif, pastikan sinyal lokasi terdeteksi dahulu sebelum buka kamera
+      if (!activeDL && !userLocation) {
         showCustomModal("error", "Akses Terkunci", "Perangkat Anda belum mendeteksi koordinat GPS valid.");
         return;
       }
 
       const widget = document.getElementById('camera-widget');
-      widget.classList.remove('hidden');
-      widget.scrollIntoView({ behavior: 'smooth' });
+      if (widget) {
+        widget.classList.remove('hidden');
+        widget.scrollIntoView({ behavior: 'smooth' });
+      }
+
+      // Pengaman jika `navigator.mediaDevices` tidak didukung (misal HTTP biasa atau restriksi sandbox ketat)
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showCustomModal("error", "Kamera Tidak Didukung", "Browser Anda memblokir akses kamera (Pastikan halaman dibuka menggunakan protokol HTTPS aman).");
+        if (widget) widget.classList.add('hidden');
+        return;
+      }
 
       try {
         cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-        document.getElementById('video').srcObject = cameraStream;
+        const videoEl = document.getElementById('video');
+        if (videoEl) videoEl.srcObject = cameraStream;
       } catch (err) {
         console.error("Gagal menyalakan kamera:", err);
         showCustomModal("error", "Kamera Error", "Gagal mengakses kamera. Silakan pastikan izin kamera diaktifkan di browser Anda.");
-        widget.classList.add('hidden');
+        if (widget) widget.classList.add('hidden');
       }
     }
 
+    // TUTUP KAMERA
     function tutupKamera() {
       if (cameraStream) {
         cameraStream.getTracks().forEach(track => track.stop());
         cameraStream = null;
       }
-      document.getElementById('camera-widget').classList.add('hidden');
+      const widget = document.getElementById('camera-widget');
+      if (widget) widget.classList.add('hidden');
     }
 
-    // AMBIL GAMBAR & PILIH PROSES PRESENSI
+    // AMBIL GAMBAR & PILIH PROSES PRESENSI (MENDUKUNG ALUR 3 TAHAP UNTUK DINAS LUAR)
     function capturePhoto() {
       const video = document.getElementById('video');
       const canvas = document.getElementById('canvas');
+      if (!video || !canvas) return;
+
       const ctx = canvas.getContext('2d');
 
       canvas.width = video.videoWidth;
@@ -1224,8 +1506,17 @@
       const tglSekarang = ClinicalNow.toISOString().split('T')[0];
       const koordinatSekarang = userLocation ? `${userLocation[0]}, ${userLocation[1]}` : "Tidak Terdeteksi";
       
-      const isMasuk = document.getElementById('status-lonceng-text').innerText === "MASUK";
-      const tipeAbsen = isMasuk ? "MASUK" : "PULANG";
+      // Deteksi status dinas luar aktif hari ini
+      const activeDL = getActiveDinasLuar();
+
+      const currentStageEl = document.getElementById('status-lonceng-text');
+      const currentStage = currentStageEl ? currentStageEl.innerText : "MASUK";
+      let tipeAbsen = currentStage; // MASUK, TIBA, atau PULANG
+
+      // Hitung keterlambatan jam masuk (Standard: 06:30)
+      const [hours, minutes] = jamSekarang.split(':').map(Number);
+      const lateMinutes = (hours * 60 + minutes) - (6 * 60 + 30); // 06:30 = 390 mnt
+      const isTerlambat = (currentStage === "MASUK") && lateMinutes > 0;
 
       kirimPresensiKeSpreadsheet(
         currentUser.nip,
@@ -1240,49 +1531,119 @@
         showLoading(false);
         tutupKamera();
 
-        if (res.success) {
-          if (isMasuk) {
-            document.getElementById('jam-masuk-realtime').innerText = jamSekarang;
-            document.getElementById('status-lonceng-text').innerText = "PULANG";
-            document.getElementById('icon-lonceng').className = "fa-solid fa-bell-slash text-5xl text-rose-500";
-            document.getElementById('btn-lonceng').className = "w-32 h-32 bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-full flex flex-col items-center justify-center shadow-lg hover:shadow-rose-200/50 transition-all transform hover:scale-105 active:scale-95";
-            
-            database.liveKehadiran.unshift({
-              nama: currentUser.nama,
-              jabatan: currentUser.jabatan,
-              jam: jamSekarang,
-              status: "Hadir",
-              foto: currentUser.foto
-            });
+        if (res && res.success) {
+          const btnLonceng = document.getElementById('btn-lonceng');
+          const statusText = document.getElementById('status-lonceng-text');
+          const iconLonceng = document.getElementById('icon-lonceng');
 
-            database.riwayatPresensi.unshift({
-              tanggal: tglSekarang,
-              hari: "Hari Ini",
-              masuk: jamSekarang,
-              pulang: "--:--",
-              status: "Hadir Tepat Waktu"
-            });
-
-            let modalMsg = "Presensi kehadiran MASUK berhasil dikirim.";
-            if (res.localOnly) {
-              modalMsg = "Presensi MASUK berhasil disimpan lokal! (Konfigurasikan Apps Script untuk integrasi Spreadsheet penuh).";
+          if (currentStage === "MASUK") {
+            // PROSES 1: ABSENSI MASUK
+            const elJamMasuk = document.getElementById('jam-masuk-realtime');
+            if (elJamMasuk) {
+              if (isTerlambat) {
+                elJamMasuk.className = "text-base font-bold text-rose-600 mt-1";
+                elJamMasuk.innerHTML = `${jamSekarang} <span class="text-[9px] block font-extrabold text-rose-500 uppercase tracking-wider">(Terlambat ${lateMinutes}m)</span>`;
+              } else {
+                elJamMasuk.className = "text-base font-bold text-emerald-600 mt-1";
+                elJamMasuk.innerText = jamSekarang;
+              }
             }
-            showCustomModal("success", "Absen Masuk Tercatat!", modalMsg);
-          } else {
-            document.getElementById('jam-pulang-realtime').innerText = jamSekarang;
-            document.getElementById('status-lonceng-text').innerText = "SELESAI";
-            document.getElementById('btn-lonceng').disabled = true;
-            document.getElementById('btn-lonceng').className = "w-32 h-32 bg-slate-100 text-slate-400 rounded-full flex flex-col items-center justify-center shadow-lg transition-all transform opacity-60 cursor-not-allowed";
+
+            // Jika guru sedang DL, alihkan tombol lonceng ke tahap kedua: "TIBA"
+            if (activeDL) {
+              if (statusText) statusText.innerText = "TIBA";
+              if (iconLonceng) iconLonceng.className = "fa-solid fa-building-flag text-5xl bell-ring";
+              if (btnLonceng) btnLonceng.className = "w-32 h-32 bg-cyan-100 hover:bg-cyan-200 text-cyan-600 rounded-full flex flex-col items-center justify-center shadow-lg hover:shadow-cyan-200/50 transition-all transform hover:scale-105 active:scale-95";
+              
+              // Masukkan data live presensi harian
+              database.liveKehadiran.unshift({
+                nama: currentUser.nama,
+                jabatan: currentUser.jabatan,
+                jam: jamSekarang,
+                status: `DL Masuk ${isTerlambat ? '(Terlambat)' : ''}`,
+                foto: currentUser.foto
+              });
+
+              database.riwayatPresensi.unshift({
+                tanggal: tglSekarang,
+                hari: "Hari Ini",
+                masuk: jamSekarang,
+                tiba: "--:--",
+                pulang: "--:--",
+                status: `Dinas Luar Aktif (${isTerlambat ? 'Terlambat' : 'Masuk'})`
+              });
+
+              showCustomModal("success", "Absen Masuk Dinas Luar!", `Presensi MASUK berhasil terekam pada jam ${jamSekarang}. Silakan tekan tombol lonceng "TIBA" saat tiba di lokasi dinas.`);
+            } else {
+              // Untuk guru non-DL, langsung ke tahap "PULANG"
+              if (statusText) statusText.innerText = "PULANG";
+              if (iconLonceng) iconLonceng.className = "fa-solid fa-bell-slash text-5xl text-rose-500";
+              if (btnLonceng) btnLonceng.className = "w-32 h-32 bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-full flex flex-col items-center justify-center shadow-lg hover:shadow-rose-200/50 transition-all transform hover:scale-105 active:scale-95";
+              
+              database.liveKehadiran.unshift({
+                nama: currentUser.nama,
+                jabatan: currentUser.jabatan,
+                jam: jamSekarang,
+                status: isTerlambat ? `Terlambat (${lateMinutes} mnt)` : "Hadir Tepat Waktu",
+                foto: currentUser.foto
+              });
+
+              database.riwayatPresensi.unshift({
+                tanggal: tglSekarang,
+                hari: "Hari Ini",
+                masuk: jamSekarang,
+                tiba: "--:--",
+                pulang: "--:--",
+                status: isTerlambat ? `Terlambat (${lateMinutes} mnt)` : "Hadir Tepat Waktu"
+              });
+
+              showCustomModal("success", "Absen Masuk Sukses!", `Presensi MASUK tepat waktu berhasil disimpan pada jam ${jamSekarang}.`);
+            }
+
+          } else if (currentStage === "TIBA") {
+            // PROSES 2: ABSENSI TIBA DI LOKASI DINAS (KHUSUS DINAS LUAR)
+            const elJamTiba = document.getElementById('jam-tiba-realtime');
+            if (elJamTiba) elJamTiba.innerText = jamSekarang;
+            
+            // Alihkan tombol lonceng ke tahap akhir: "PULANG"
+            if (statusText) statusText.innerText = "PULANG";
+            if (iconLonceng) iconLonceng.className = "fa-solid fa-bell-slash text-5xl text-rose-500";
+            if (btnLonceng) btnLonceng.className = "w-32 h-32 bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-full flex flex-col items-center justify-center shadow-lg hover:shadow-rose-200/50 transition-all transform hover:scale-105 active:scale-95";
+
+            // Update status live harian
+            if (database.liveKehadiran[0] && database.liveKehadiran[0].nama === currentUser.nama) {
+              database.liveKehadiran[0].status = "DL Active (Tiba)";
+              database.liveKehadiran[0].jam = `${database.liveKehadiran[0].jam} | Tiba: ${jamSekarang}`;
+            }
+
+            // Update status riwayat personal harian
+            if (database.riwayatPresensi[0] && database.riwayatPresensi[0].tanggal === tglSekarang) {
+              database.riwayatPresensi[0].tiba = jamSekarang;
+              database.riwayatPresensi[0].status = "DL (Tiba di Lokasi)";
+            }
+
+            showCustomModal("success", "Selamat Tiba di Lokasi!", `Presensi kehadiran TIBA di lokasi dinas berhasil dicatat pada jam ${jamSekarang}. Selamat melaksanakan tugas.`);
+
+          } else if (currentStage === "PULANG") {
+            // PROSES 3: ABSENSI PULANG
+            const elJamPulang = document.getElementById('jam-pulang-realtime');
+            if (elJamPulang) elJamPulang.innerText = jamSekarang;
+            
+            // Kunci tombol lonceng (Selesai absensi harian)
+            if (statusText) statusText.innerText = "SELESAI";
+            if (btnLonceng) {
+              btnLonceng.disabled = true;
+              btnLonceng.className = "w-32 h-32 bg-slate-100 text-slate-400 rounded-full flex flex-col items-center justify-center shadow-lg transition-all transform opacity-60 cursor-not-allowed";
+            }
 
             if (database.riwayatPresensi[0] && database.riwayatPresensi[0].tanggal === tglSekarang) {
               database.riwayatPresensi[0].pulang = jamSekarang;
+              if (activeDL) {
+                database.riwayatPresensi[0].status = "DL Selesai (Hadir)";
+              }
             }
 
-            let modalMsg = "Presensi kehadiran PULANG berhasil disimpan.";
-            if (res.localOnly) {
-              modalMsg = "Presensi PULANG berhasil disimpan lokal! (Konfigurasikan Apps Script untuk integrasi Spreadsheet penuh).";
-            }
-            showCustomModal("success", "Absen Pulang Tercatat!", modalMsg);
+            showCustomModal("success", "Absen Pulang Tercatat!", `Hati-hati di jalan pulang! Presensi PULANG harian Anda berhasil disimpan pada jam ${jamSekarang}.`);
           }
           
           renderLivePresensi();
@@ -1296,64 +1657,109 @@
     // LIVE PRESENSI (PEGAWAI LAIN)
     function renderLivePresensi() {
       const listEl = document.getElementById('live-list-pegawai');
-      const searchVal = document.getElementById('live-search').value.toLowerCase();
+      if (!listEl) return;
+      const searchVal = document.getElementById('live-search') ? document.getElementById('live-search').value.toLowerCase() : "";
       
       const filtered = database.liveKehadiran.filter(p => p.nama.toLowerCase().includes(searchVal));
-      document.getElementById('live-total-pegawai').innerText = filtered.length;
+      
+      const totalPegEl = document.getElementById('live-total-pegawai');
+      if (totalPegEl) totalPegEl.innerText = filtered.length;
 
       if (filtered.length === 0) {
         listEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Tidak ada pegawai yang cocok.</p>`;
         return;
       }
 
-      listEl.innerHTML = filtered.map(item => `
-        <div class="flex items-center gap-3 bg-slate-50 border border-slate-100 p-3 rounded-2xl">
-          <img src="${item.foto}" class="w-10 h-10 rounded-xl object-cover" alt="Foto">
-          <div class="flex-1 min-w-0">
-            <h4 class="text-xs font-bold text-slate-800 truncate text-left">${item.nama}</h4>
-            <p class="text-[10px] text-slate-500 font-semibold truncate text-left">${item.jabatan}</p>
+      listEl.innerHTML = filtered.map(item => {
+        // Deteksi status terlambat atau DL
+        const isLate = item.status && item.status.includes("Terlambat");
+        const isDL = item.status && (item.status.includes("DL") || item.status.includes("Dinas"));
+        
+        let statusBadgeColor = "text-emerald-600 bg-emerald-50 border-emerald-100";
+        if (isLate) {
+          statusBadgeColor = "text-rose-600 bg-rose-50 border-rose-100";
+        } else if (isDL) {
+          statusBadgeColor = "text-cyan-600 bg-cyan-50 border-cyan-100";
+        }
+
+        return `
+          <div class="flex items-center gap-3 bg-slate-50 border border-slate-100 p-3 rounded-2xl">
+            <img src="${item.foto}" class="w-10 h-10 rounded-xl object-cover" alt="Foto">
+            <div class="flex-1 min-w-0">
+              <h4 class="text-xs font-bold text-slate-800 truncate text-left">${item.nama}</h4>
+              <p class="text-[10px] text-slate-500 font-semibold truncate text-left">${item.jabatan}</p>
+            </div>
+            <div class="text-right shrink-0">
+              <span class="text-[10px] font-bold block px-2 py-1 rounded-lg border ${statusBadgeColor}">${item.status}</span>
+              <span class="text-[9px] text-slate-400 block mt-1">${item.jam} WIB</span>
+            </div>
           </div>
-          <div class="text-right">
-            <span class="text-[10px] font-bold text-emerald-600 block bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">${item.status}</span>
-            <span class="text-[9px] text-slate-400 block mt-1">${item.jam} WIB</span>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     function filterLivePresensi() {
       renderLivePresensi();
     }
 
-    // PETA DINAS LUAR (LEAFLET)
+    // PETA DINAS LUAR (LEAFLET - Dilengkapi proteksi jika script CDN Leaflet terblokir)
     function initLeafletMap() {
+      if (typeof L === 'undefined') {
+        console.warn("Pustaka Leaflet (L) gagal dimuat atau terblokir. Mode peta tidak aktif.");
+        const mapContainer = document.getElementById('dl-map');
+        if (mapContainer) {
+          mapContainer.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-full bg-slate-100 text-slate-500 p-4 text-center">
+              <i class="fa-solid fa-map-pin text-2xl mb-1 text-slate-400"></i>
+              <p class="text-xs font-semibold">Peta tidak dapat dimuat (Modul Offline)</p>
+              <p class="text-[10px] text-slate-400 mt-0.5">Silakan ketik alamat lokasi dinas secara manual di bawah.</p>
+            </div>
+          `;
+        }
+        return;
+      }
+
       if (map) return;
 
-      map = L.map('dl-map').setView(KOORDINAT_SEKOLAH, 13);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap'
-      }).addTo(map);
+      const mapContainer = document.getElementById('dl-map');
+      if (!mapContainer) return;
 
-      L.marker(KOORDINAT_SEKOLAH).addTo(map)
-        .bindPopup('<b>SMA Mifthaussaadah</b><br>Titik Pusat Presensi Utama.')
-        .openPopup();
+      try {
+        map = L.map('dl-map').setView(KOORDINAT_SEKOLAH, 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap'
+        }).addTo(map);
 
-      map.on('click', function(e) {
-        const lat = e.latlng.lat.toFixed(6);
-        const lng = e.latlng.lng.toFixed(6);
-        document.getElementById('dl-coords').value = `${lat}, ${lng}`;
+        L.marker(KOORDINAT_SEKOLAH).addTo(map)
+          .bindPopup('<b>SMA Mifthaussaadah</b><br>Titik Pusat Presensi Utama.')
+          .openPopup();
 
-        if (mapMarker) {
-          mapMarker.setLatLng(e.latlng);
-        } else {
-          mapMarker = L.marker(e.latlng).addTo(map);
-        }
-      });
+        map.on('click', function(e) {
+          const lat = e.latlng.lat.toFixed(6);
+          const lng = e.latlng.lng.toFixed(6);
+          const coordsInput = document.getElementById('dl-coords');
+          if (coordsInput) coordsInput.value = `${lat}, ${lng}`;
+
+          if (mapMarker) {
+            mapMarker.setLatLng(e.latlng);
+          } else {
+            mapMarker = L.marker(e.latlng).addTo(map);
+          }
+        });
+      } catch (err) {
+        console.error("Kesalahan saat inisialisasi peta Leaflet:", err);
+      }
     }
 
     function cariLocationsPeta() {
-      const query = document.getElementById('dl-search-lokasi').value.trim();
+      const searchInput = document.getElementById('dl-search-lokasi');
+      const query = searchInput ? searchInput.value.trim() : "";
       if (!query) return;
+
+      if (typeof L === 'undefined') {
+        showCustomModal("error", "Fitur Dinonaktifkan", "Peta Leaflet tidak tersedia. Silakan isi koordinat manual.");
+        return;
+      }
 
       showLoading(true, "Mencari Lokasi...");
       fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
@@ -1365,13 +1771,16 @@
             const lat = parseFloat(firstResult.lat);
             const lon = parseFloat(firstResult.lon);
             
-            map.setView([lat, lon], 14);
-            document.getElementById('dl-coords').value = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+            if (map) {
+              map.setView([lat, lon], 14);
+              const coordsInput = document.getElementById('dl-coords');
+              if (coordsInput) coordsInput.value = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
 
-            if (mapMarker) {
-              mapMarker.setLatLng([lat, lon]);
-            } else {
-              mapMarker = L.marker([lat, lon]).addTo(map);
+              if (mapMarker) {
+                mapMarker.setLatLng([lat, lon]);
+              } else {
+                mapMarker = L.marker([lat, lon]).addTo(map);
+              }
             }
           } else {
             showCustomModal("error", "Tidak Ditemukan", "Alamat yang dicari tidak ditemukan.");
@@ -1390,10 +1799,12 @@
       const tabs = ['semua', 'Menunggu', 'Disetujui', 'Ditolak'];
       tabs.forEach(tab => {
         const el = document.getElementById(`tab-dl-${tab}`);
-        if (tab === status) {
-          el.className = "flex-1 py-2 text-center font-bold border-b-2 border-emerald-600 text-emerald-600";
-        } else {
-          el.className = "flex-1 py-2 text-center font-bold border-b-2 border-transparent text-slate-400";
+        if (el) {
+          if (tab === status) {
+            el.className = "flex-1 py-2 text-center font-bold border-b-2 border-emerald-600 text-emerald-600";
+          } else {
+            el.className = "flex-1 py-2 text-center font-bold border-b-2 border-transparent text-slate-400";
+          }
         }
       });
       filterDinasLuar();
@@ -1402,11 +1813,13 @@
     // FORM VISIBILITAS DL
     function bukaFormDL(buka) {
       const form = document.getElementById('form-pengajuan-dl');
-      if (buka) {
-        form.classList.remove('hidden');
-        form.scrollIntoView({ behavior: 'smooth' });
-      } else {
-        form.classList.add('hidden');
+      if (form) {
+        if (buka) {
+          form.classList.remove('hidden');
+          form.scrollIntoView({ behavior: 'smooth' });
+        } else {
+          form.classList.add('hidden');
+        }
       }
     }
 
@@ -1424,6 +1837,7 @@
         showLoading(false);
         database.dinasLuar.unshift({
           id: Date.now(),
+          nip: currentUser.nip, // Menghubungkan Dinas Luar dengan NIP guru secara otomatis
           tipe,
           tglMulai,
           tglSelesai,
@@ -1435,27 +1849,37 @@
         document.getElementById('dl-tgl-selesai').value = '';
         document.getElementById('dl-keterangan').value = '';
         document.getElementById('dl-coords').value = '';
-        if (mapMarker) {
+        if (mapMarker && map) {
           map.removeLayer(mapMarker);
           mapMarker = null;
         }
 
         bukaFormDL(false);
         filterDinasLuar();
+        // Segera evaluasi geofencing jika ada pengajuan dinas luar baru yang disetujui
+        checkGeofenceDistance();
         showCustomModal("success", "Pengajuan Dikirim", "Dinas luar Anda berhasil diajukan dan sedang menunggu verifikasi.");
       }, 1200);
     }
 
+    // FILTER DINAS LUAR
     function filterDinasLuar() {
       const container = document.getElementById('list-dl');
-      const tahun = document.getElementById('filter-dl-tahun').value;
-      const bulan = document.getElementById('filter-dl-bulan').value;
+      if (!container) return;
+      const status_tahun_el = document.getElementById('filter-dl-tahun');
+      const status_bulan_el = document.getElementById('filter-dl-bulan');
+      
+      const tahun = status_tahun_el ? status_tahun_el.value : "2026";
+      const bulan = status_bulan_el ? status_bulan_el.value : "semua";
 
       let filtered = database.dinasLuar;
 
       if (currentTabDL !== 'semua') {
         filtered = filtered.filter(item => item.status === currentTabDL);
       }
+
+      // Pastikan hanya memuat pengajuan dinas luar dari guru yang saat ini sedang login
+      filtered = filtered.filter(item => item.nip === currentUser.nip);
 
       filtered = filtered.filter(item => {
         const tgl = new Date(item.tglMulai);
@@ -1501,10 +1925,12 @@
       const tabs = ['semua', 'Menunggu', 'Disetujui', 'Ditolak'];
       tabs.forEach(tab => {
         const el = document.getElementById(`tab-izin-${tab}`);
-        if (tab === status) {
-          el.className = "flex-1 py-2 text-center font-bold border-b-2 border-emerald-600 text-emerald-600";
-        } else {
-          el.className = "flex-1 py-2 text-center font-bold border-b-2 border-transparent text-slate-400";
+        if (el) {
+          if (tab === status) {
+            el.className = "flex-1 py-2 text-center font-bold border-b-2 border-emerald-600 text-emerald-600";
+          } else {
+            el.className = "flex-1 py-2 text-center font-bold border-b-2 border-transparent text-slate-400";
+          }
         }
       });
       filterIzinPersonal();
@@ -1513,10 +1939,10 @@
     function bukaFormIzin(buka) {
       const form = document.getElementById('form-pengajuan-izin');
       if (buka) {
-        form.classList.remove('hidden');
-        form.scrollIntoView({ behavior: 'smooth' });
+        if (form) form.classList.remove('hidden');
+        if (form) form.scrollIntoView({ behavior: 'smooth' });
       } else {
-        form.classList.add('hidden');
+        if (form) form.classList.add('hidden');
       }
     }
 
@@ -1550,10 +1976,16 @@
       }, 1000);
     }
 
+    // FILTER IZIN PERSONAL
     function filterIzinPersonal() {
       const container = document.getElementById('list-izin');
-      const tahun = document.getElementById('filter-izin-tahun').value;
-      const bulan = document.getElementById('filter-izin-bulan').value;
+      if (!container) return;
+      
+      const status_tahun_el = document.getElementById('filter-izin-tahun');
+      const status_bulan_el = document.getElementById('filter-izin-bulan');
+      
+      const text_tahun = status_tahun_el ? status_tahun_el.value : "2026";
+      const text_bulan = status_bulan_el ? status_bulan_el.value : "semua";
 
       let filtered = database.izinPersonal;
 
@@ -1563,8 +1995,8 @@
 
       filtered = filtered.filter(item => {
         const tgl = new Date(item.tanggal);
-        const matchesTahun = tgl.getFullYear().toString() === tahun;
-        const matchesBulan = bulan === "semua" ? true : (tgl.getMonth() + 1).toString() === bulan;
+        const matchesTahun = tgl.getFullYear().toString() === text_tahun;
+        const matchesBulan = text_bulan === "semua" ? true : (tgl.getMonth() + 1).toString() === text_bulan;
         return matchesTahun && matchesBulan;
       });
 
@@ -1598,16 +2030,21 @@
       }).join('');
     }
 
-    // RIWAYAT & REKAPITULASI PRIBADI
+    // RIWAYAT & REKAPITULASI PRIBADI (KONSISTEN WARNA MERAH UNTUK TERLAMBAT)
     function renderRiwayatList() {
       const container = document.getElementById('rincian-harian-list');
-      const tahun = document.getElementById('filter-riwayat-tahun').value;
-      const bulan = document.getElementById('filter-riwayat-bulan').value;
+      if (!container) return;
+      
+      const status_tahun_el = document.getElementById('filter-riwayat-tahun');
+      const status_bulan_el = document.getElementById('filter-riwayat-bulan');
+      
+      const text_tahun = status_tahun_el ? status_tahun_el.value : "2026";
+      const text_bulan = status_bulan_el ? status_bulan_el.value : "5";
 
       let filtered = database.riwayatPresensi.filter(item => {
         const tgl = new Date(item.tanggal);
-        const matchesTahun = tgl.getFullYear().toString() === tahun;
-        const matchesBulan = (tgl.getMonth() + 1).toString() === bulan;
+        const matchesTahun = tgl.getFullYear().toString() === text_tahun;
+        const matchesBulan = (tgl.getMonth() + 1).toString() === text_bulan;
         return matchesTahun && matchesBulan;
       });
 
@@ -1620,9 +2057,9 @@
       let totalTAP = 0;
 
       filtered.forEach(item => {
-        if (item.status.includes("Tepat Waktu")) {
+        if (item.status && item.status.includes("Tepat Waktu")) {
           totalHadir++;
-        } else if (item.status.includes("Terlambat")) {
+        } else if (item.status && item.status.includes("Terlambat")) {
           totalHadir++;
           const mnt = parseInt(item.status.replace(/[^0-9]/g, '')) || 0;
           totalTerlambatMnt += mnt;
@@ -1630,7 +2067,7 @@
           totalSakit++;
         } else if (item.status === "Izin") {
           totalIzin++;
-        } else if (item.status === "Dinas Luar") {
+        } else if (item.status && (item.status.includes("Dinas Luar") || item.status.includes("DL"))) {
           totalDL++;
         } else if (item.status === "Alfa") {
           totalAlfa++;
@@ -1639,13 +2076,21 @@
         }
       });
 
-      document.getElementById('rekap-hadir').innerText = `${totalHadir} hari`;
-      document.getElementById('rekap-telat').innerText = `${totalTerlambatMnt} mnt`;
-      document.getElementById('rekap-alfa').innerText = `${totalAlfa} hari`;
-      document.getElementById('rekap-sakit').innerText = totalSakit;
-      document.getElementById('rekap-izin').innerText = totalIzin;
-      document.getElementById('rekap-dl').innerText = totalDL;
-      document.getElementById('rekap-tap').innerText = totalTAP;
+      const rekap_hadir_el = document.getElementById('rekap-hadir');
+      const rekap_telat_el = document.getElementById('rekap-telat');
+      const rekap_alfa_el = document.getElementById('rekap-alfa');
+      const rekap_sakit_el = document.getElementById('rekap-sakit');
+      const rekap_izin_el = document.getElementById('rekap-izin');
+      const rekap_dl_el = document.getElementById('rekap-dl');
+      const rekap_tap_el = document.getElementById('rekap-tap');
+
+      if (rekap_hadir_el) rekap_hadir_el.innerText = `${totalHadir} hari`;
+      if (rekap_telat_el) rekap_telat_el.innerText = `${totalTerlambatMnt} mnt`;
+      if (rekap_alfa_el) rekap_alfa_el.innerText = `${totalAlfa} hari`;
+      if (rekap_sakit_el) rekap_sakit_el.innerText = totalSakit;
+      if (rekap_izin_el) rekap_izin_el.innerText = totalIzin;
+      if (rekap_dl_el) rekap_dl_el.innerText = totalDL;
+      if (rekap_tap_el) rekap_tap_el.innerText = totalTAP;
 
       if (filtered.length === 0) {
         container.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Tidak ada rincian kehadiran pada periode ini.</p>`;
@@ -1653,10 +2098,28 @@
       }
 
       container.innerHTML = filtered.map(item => {
-        const statusIsNormal = item.status.includes("Tepat Waktu");
-        const badgeColor = statusIsNormal 
-          ? "bg-emerald-50 text-emerald-700 border-emerald-100" 
-          : "bg-amber-50 text-amber-700 border-amber-100";
+        const statusIsNormal = item.status && item.status.includes("Tepat Waktu");
+        const isLate = item.status && item.status.includes("Terlambat");
+        const isDL = item.status && (item.status.includes("DL") || item.status.includes("Dinas"));
+        
+        let badgeColor = "bg-amber-50 text-amber-700 border-amber-100";
+        if (statusIsNormal) {
+          badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-100";
+        } else if (isDL) {
+          badgeColor = "bg-cyan-50 text-cyan-700 border-cyan-100";
+        } else if (isLate || item.status === "Alfa" || item.status === "TAP") {
+          badgeColor = "bg-rose-50 text-rose-700 border-rose-100";
+        }
+
+        // Tampilkan 3 kolom waktu khusus untuk riwayat dinas luar
+        const tibaWaktuHtml = isDL ? `
+          <div>
+            <span class="text-[9px] font-bold text-slate-400 block uppercase">Tiba</span>
+            <span class="text-xs font-extrabold text-cyan-600 mt-0.5 block">${item.tiba || '--:--'} WIB</span>
+          </div>
+        ` : '';
+
+        const gridColsClass = isDL ? "grid-cols-3" : "grid-cols-2";
 
         return `
           <div class="border border-slate-100 p-4 rounded-2xl flex flex-col gap-2.5 bg-slate-50/50">
@@ -1666,11 +2129,12 @@
               </div>
               <span class="text-[10px] font-bold px-2 py-0.5 rounded-md border ${badgeColor}">${item.status}</span>
             </div>
-            <div class="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-xl border border-slate-100 text-center">
+            <div class="grid ${gridColsClass} gap-2 bg-white p-2.5 rounded-xl border border-slate-100 text-center">
               <div>
                 <span class="text-[9px] font-bold text-slate-400 block uppercase">Masuk</span>
                 <span class="text-xs font-extrabold text-emerald-600 mt-0.5 block">${item.masuk} WIB</span>
               </div>
+              ${tibaWaktuHtml}
               <div>
                 <span class="text-[9px] font-bold text-slate-400 block uppercase">Pulang</span>
                 <span class="text-xs font-extrabold text-rose-600 mt-0.5 block">${item.pulang} WIB</span>
