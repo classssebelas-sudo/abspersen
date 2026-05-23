@@ -1768,11 +1768,39 @@
       if (dynamicPegawai[nip]) {
         currentUser = dynamicPegawai[nip];
       } else {
-        // Fallback jika NIP belum terdaftar di database, sistem langsung otomatis membuat profil lokal agar login selalu instan!
-        currentUser = {
-          nip: nip,
-          nama: "Guru SMA Mifthaussaadah",
-          jabatan: "Guru Pengajar",
+        // AMBIL DATA LANGSUNG DARI SPREADSHEET SHEET "GURU"
+        var ss = SpreadsheetApp.getActiveSpreadsheet();
+        var sheetGuru = ss.getSheetByName("Guru");
+        
+        if (sheetGuru) {
+          var dataGuru = sheetGuru.getDataRange().getValues();
+          var targetNip = String(nip).trim();
+          var ditemukan = false;
+
+          // Looping untuk mencari data berdasarkan NIP (Mulai dari baris ke-2 / indeks 1)
+          for (var i = 1; i < dataGuru.length; i++) {
+            var nipDiSheet = String(dataGuru[i][0]).trim(); // Kolom 1 (NIP)
+
+            if (nipDiSheet === targetNip) {
+              currentUser = {
+                nip: dataGuru[i][0],      // Kolom 1 (NIP)
+                nama: dataGuru[i][1],     // Kolom 2 (Nama Guru)
+                jabatan: dataGuru[i][2]   // Kolom 3 (Jabatan)
+              };
+              diteruskan = true;
+              break;
+            }
+          }
+        }
+
+        // Jika setelah dicari di Spreadsheet tetap TIDAK ADA, berikan pesan error (bukan profil palsu)
+        if (!diteruskan) {
+          return { 
+            status: "gagal", 
+            pesan: "Login Gagal! NIP '" + nip + "' tidak terdaftar di database Sheet Guru." 
+          };
+        }
+      }
           foto: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"
         };
         dynamicPegawai[nip] = currentUser;
