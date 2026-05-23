@@ -550,7 +550,7 @@
           </div>
           <div class="bg-rose-600 text-white p-3 rounded-2xl text-center">
             <span class="text-[9px] font-semibold text-rose-100 uppercase block">Alfa</span>
-            <p id="rekap-alfa" class="text-base font-bold mt-0.5">0 hari</p>
+            <p id="rekap-alfa" class="text-base font-bold mt-0.5">0 mnt</p>
           </div>
         </div>
 
@@ -679,7 +679,7 @@
               <i class="fa-solid fa-location-dot"></i>
             </div>
             <div>
-              <span class="text-[10px] font-bold text-slate-400 block uppercase">Lokasi Presensi Diperbolehkan</span>
+              <span class="text-[10px] font-bold text-slate-400 block uppercase">Locations Presensi Diperbolehkan</span>
               <p class="text-xs font-extrabold text-slate-700 mt-0.5">SMA Mifthaussaadah</p>
               <p class="text-[10px] font-semibold text-rose-500 mt-0.5"><i class="fa-solid fa-circle-exclamation mr-0.5"></i> Terkunci dalam radius geofence maks. 100 meter</p>
             </div>
@@ -765,6 +765,9 @@
         { id: 1, jenis: "Izin Terlambat Masuk", tanggal: "2026-05-05", jam: "08:30", keterangan: "Kendala Servis Motor Rutin", status: "Disetujui" }
       ],
       riwayatPresensi: [
+        { tanggal: "2026-05-23", hari: "Sabtu", masuk: "06:15", tiba: "--:--", pulang: "15:00", status: "Hadir Tepat Waktu" },
+        { tanggal: "2026-05-22", hari: "Jumat", masuk: "--:--", tiba: "--:--", pulang: "--:--", status: "Alfa" },
+        { tanggal: "2026-05-21", hari: "Kamis", masuk: "06:20", tiba: "--:--", pulang: "--:--", status: "TAP" }, // TAP: Tidak Absen Pulang
         { tanggal: "2026-05-15", hari: "Jumat", masuk: "06:20", tiba: "--:--", pulang: "15:05", status: "Hadir Tepat Waktu" },
         { tanggal: "2026-05-14", hari: "Kamis", masuk: "06:28", tiba: "--:--", pulang: "15:10", status: "Hadir Tepat Waktu" },
         { tanggal: "2026-05-13", hari: "Rabu", masuk: "06:45", tiba: "--:--", pulang: "15:02", status: "Terlambat (15 mnt)" },
@@ -1027,6 +1030,26 @@
       const activeDL = getActiveDinasLuar();
       const btnLonceng = document.getElementById('btn-lonceng');
       const helperText = document.getElementById('btn-helper-text');
+      const currentStageEl = document.getElementById('status-lonceng-text');
+      const currentStage = currentStageEl ? currentStageEl.innerText : "MASUK";
+
+      // ATURAN PENGAMAN BARU: JIKA GURU MEMASUKI TAHAP PRESENSI PULANG DAN BELUM JAM 15.00
+      if (currentStage === "PULANG") {
+        const now = new Date();
+        const jamSekarang = now.getHours();
+        
+        if (jamSekarang < 15) {
+          if (btnLonceng) {
+            btnLonceng.disabled = true;
+            btnLonceng.className = "w-32 h-32 bg-slate-100 text-slate-400 rounded-full flex flex-col items-center justify-center shadow-lg transition-all transform opacity-60 cursor-not-allowed";
+          }
+          if (helperText) {
+            helperText.className = "text-[10px] text-rose-500 mt-4 text-center font-bold";
+            helperText.innerHTML = `<i class="fa-solid fa-lock mr-1 animate-pulse"></i> Presensi PULANG dikunci sampai pukul 15.00 WIB.`;
+          }
+          return; // Menghentikan eksekusi kode aktivasi lonceng selanjutnya
+        }
+      }
 
       // JIKA GURU MEMILIKI DINAS LUAR AKTIF, BEBASKAN RADIUS GEOFENCING!
       if (activeDL) {
@@ -1035,8 +1058,6 @@
           btnLonceng.disabled = false;
           
           // Sesuaikan skema warna dinamis sesuai state presensi 3 tahap khusus DL
-          const currentStageEl = document.getElementById('status-lonceng-text');
-          const currentStage = currentStageEl ? currentStageEl.innerText : "MASUK";
           if (currentStage === "MASUK") {
             btnLonceng.className = "w-32 h-32 bg-emerald-100 hover:bg-emerald-200 text-emerald-600 rounded-full flex flex-col items-center justify-center shadow-lg hover:shadow-emerald-200/50 transition-all transform hover:scale-105 active:scale-95";
           } else if (currentStage === "TIBA") {
@@ -1068,8 +1089,6 @@
         updateGPSStatus("success", `Lokasi Terverifikasi (Berjarak ${Math.round(jarak)}m dari Sekolah)`);
         if (btnLonceng) {
           btnLonceng.disabled = false;
-          const currentStageEl = document.getElementById('status-lonceng-text');
-          const currentStage = currentStageEl ? currentStageEl.innerText : "MASUK";
           if (currentStage === "MASUK") {
             btnLonceng.className = "w-32 h-32 bg-emerald-100 hover:bg-emerald-200 text-emerald-600 rounded-full flex flex-col items-center justify-center shadow-lg hover:shadow-emerald-200/50 transition-all transform hover:scale-105 active:scale-95";
           } else {
@@ -1303,6 +1322,7 @@
     // ==========================================
     let selectedAvatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150";
 
+    // FUNGSI MEMILIH AVATAR
     function selectAvatarStyle(index) {
       const labels = ['label-av-1', 'label-av-2', 'label-av-3', 'label-av-4'];
       labels.forEach((id, idx) => {
@@ -1504,9 +1524,20 @@
       tutupKamera();
     }
 
-    // KAMERA GURU ABSENSI
+    // KAMERA GURU ABSENSI (DENGAN PENYEMPURNAAN ATURAN WAKTU)
     async function bukaKameraPresensi() {
       const activeDL = getActiveDinasLuar();
+      const currentStageEl = document.getElementById('status-lonceng-text');
+      const currentStage = currentStageEl ? currentStageEl.innerText : "MASUK";
+
+      // BLOKIR PEMBUKAAN KAMERA JIKA TAHAP ADALAH "PULANG" DAN BELUM JAM 15.00 WIB
+      if (currentStage === "PULANG") {
+        const now = new Date();
+        if (now.getHours() < 15) {
+          showCustomModal("error", "Presensi Terkunci", "Presensi PULANG belum diperbolehkan sebelum pukul 15.00 WIB.");
+          return;
+        }
+      }
       
       // Jika tidak punya Dinas Luar aktif, pastikan sinyal lokasi terdeteksi dahulu sebelum buka kamera
       if (!activeDL && !userLocation) {
@@ -1723,6 +1754,9 @@
           
           // Simpan seluruh data berjalan secara aman ke localStorage
           saveDatabaseToStorage();
+
+          // SINKRONISASI AKTIFKAN VALIDASI LOCK GEOFENCE UNTUK UPDATE KEADAAN LONCENG TERBARU
+          checkGeofenceDistance();
 
           renderLivePresensi();
           renderRiwayatList();
@@ -2079,7 +2113,7 @@
       }).join('');
     }
 
-    // RIWAYAT & REKAPITULASI PRIBADI
+    // RIWAYAT & REKAPITULASI PRIBADI (SINKRONISASI MENUT ALFA)
     function renderRiwayatList() {
       const container = document.getElementById('rincian-harian-list');
       if (!container) return;
@@ -2099,29 +2133,42 @@
 
       let totalHadir = 0;
       let totalTerlambatMnt = 0;
-      let totalAlfa = 0;
+      let totalAlfaMnt = 0; // Mengubah rekap Alfa menjadi berbasis menit
       let totalSakit = 0;
       let totalIzin = 0;
       let totalDL = 0;
       let totalTAP = 0;
 
       filtered.forEach(item => {
-        if (item.status && item.status.includes("Tepat Waktu")) {
+        const status = item.status || "";
+        const isExcused = status === "Sakit" || status === "Izin" || status.includes("Dinas Luar") || status.includes("DL");
+
+        if (status.includes("Tepat Waktu")) {
           totalHadir++;
-        } else if (item.status && item.status.includes("Terlambat")) {
+        } else if (status.includes("Terlambat")) {
           totalHadir++;
-          const mnt = parseInt(item.status.replace(/[^0-9]/g, '')) || 0;
+          const mnt = parseInt(status.replace(/[^0-9]/g, '')) || 0;
           totalTerlambatMnt += mnt;
-        } else if (item.status === "Sakit") {
+        } else if (status === "Sakit") {
           totalSakit++;
-        } else if (item.status === "Izin") {
+        } else if (status === "Izin") {
           totalIzin++;
-        } else if (item.status && (item.status.includes("Dinas Luar") || item.status.includes("DL"))) {
+        } else if (status.includes("Dinas Luar") || status.includes("DL")) {
           totalDL++;
-        } else if (item.status === "Alfa") {
-          totalAlfa++;
-        } else if (item.status === "TAP") {
+        } else if (status === "TAP") {
           totalTAP++;
+        }
+
+        // PERHITUNGAN MENIT ALFA DINAMIS:
+        // 1. Jika tidak absen masuk (alfa total) -> dihitung 510 menit (06.30 - 15.00)
+        // 2. Jika absen masuk ada, tapi tidak absen pulang (TAP) -> dihitung penalti 270 menit
+        // 3. Jika presensi lengkap masuk & pulang -> dihitung 0 menit (tidak terisi)
+        if (!isExcused) {
+          if (item.masuk === "--:--") {
+            totalAlfaMnt += 510; 
+          } else if (item.pulang === "--:--") {
+            totalAlfaMnt += 270;
+          }
         }
       });
 
@@ -2135,7 +2182,7 @@
 
       if (rekap_hadir_el) rekap_hadir_el.innerText = `${totalHadir} hari`;
       if (rekap_telat_el) rekap_telat_el.innerText = `${totalTerlambatMnt} mnt`;
-      if (rekap_alfa_el) rekap_alfa_el.innerText = `${totalAlfa} hari`;
+      if (rekap_alfa_el) rekap_alfa_el.innerText = `${totalAlfaMnt} mnt`; // Update Tampilan dalam menit
       if (rekap_sakit_el) rekap_sakit_el.innerText = totalSakit;
       if (rekap_izin_el) rekap_izin_el.innerText = totalIzin;
       if (rekap_dl_el) rekap_dl_el.innerText = totalDL;
@@ -2150,13 +2197,26 @@
         const statusIsNormal = item.status && item.status.includes("Tepat Waktu");
         const isLate = item.status && item.status.includes("Terlambat");
         const isDL = item.status && (item.status.includes("DL") || item.status.includes("Dinas"));
+        const isTAP = item.status === "TAP" || (item.masuk !== "--:--" && item.pulang === "--:--");
+        const isAlfa = item.status === "Alfa" || (item.masuk === "--:--" && item.pulang === "--:--");
         
         let badgeColor = "bg-amber-50 text-amber-700 border-amber-100";
-        if (statusIsNormal) {
+        let displayStatus = item.status;
+
+        // Custom teks badge untuk Alfa & TAP yang memuat informasi kalkulasi menit
+        if (isAlfa && item.status === "Alfa") {
+          badgeColor = "bg-rose-50 text-rose-700 border-rose-100";
+          displayStatus = "Alfa (510 mnt)";
+        } else if (isTAP && item.status === "TAP") {
+          badgeColor = "bg-rose-50 text-rose-700 border-rose-100";
+          displayStatus = "TAP (270 mnt)";
+        } else if (statusIsNormal) {
           badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-100";
         } else if (isDL) {
           badgeColor = "bg-cyan-50 text-cyan-700 border-cyan-100";
-        } else if (isLate || item.status === "Alfa" || item.status === "TAP") {
+        } else if (isLate) {
+          badgeColor = "bg-amber-50 text-amber-700 border-amber-100";
+        } else if (item.status === "Alfa" || item.status === "TAP") {
           badgeColor = "bg-rose-50 text-rose-700 border-rose-100";
         }
 
@@ -2176,7 +2236,7 @@
               <div>
                 <h4 class="text-xs font-bold text-slate-800 text-left">${item.hari}, ${item.tanggal}</h4>
               </div>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-md border ${badgeColor}">${item.status}</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-md border ${badgeColor}">${displayStatus}</span>
             </div>
             <div class="grid ${gridColsClass} gap-2 bg-white p-2.5 rounded-xl border border-slate-100 text-center">
               <div>
