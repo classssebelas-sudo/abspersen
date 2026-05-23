@@ -752,10 +752,10 @@
     // Database Simulasi Logika Menu Lainnya (Memory Session)
     const database = {
       liveKehadiran: [
-        { nama: "Budi Santoso, S.Kom", jabatan: "Guru TI", jam: "06:15", status: "Hadir Tepat Waktu", foto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=60" },
-        { nama: "Rina Wijaya, S.Pd", jabatan: "Guru Matematika", jam: "06:22", status: "Hadir Tepat Waktu", foto: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=60" },
-        { nama: "Hendro, M.Pd", jabatan: "Guru Sejarah", jam: "06:45", status: "Terlambat (15 mnt)", foto: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=60" },
-        { nama: "Lilis Marlina, S.Ag", jabatan: "Guru Agama", jam: "--:--", status: "Dinas Luar", foto: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=60" }
+        { nama: "Budi Santoso, S.Kom", jabatan: "Guru TI", tanggal: "2026-05-23", jam: "06:15", status: "Hadir Tepat Waktu", foto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=60" },
+        { nama: "Rina Wijaya, S.Pd", jabatan: "Guru Matematika", tanggal: "2026-05-23", jam: "06:22", status: "Hadir Tepat Waktu", foto: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=60" },
+        { nama: "Hendro, M.Pd", jabatan: "Guru Sejarah", tanggal: "2026-05-23", jam: "06:45", status: "Terlambat (15 mnt)", foto: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=60" },
+        { nama: "Lilis Marlina, S.Ag", jabatan: "Guru Agama", tanggal: "2026-05-22", jam: "--:--", status: "Dinas Luar", foto: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=60" }
       ],
       dinasLuar: [
         { id: 1, nip: "19890101", tipe: "Dinas Luar Full", tglMulai: "2026-05-18", tglSelesai: "2026-05-25", keterangan: "Workshop Kurikulum Merdeka di Dinas Pendidikan", status: "Disetujui" },
@@ -772,11 +772,41 @@
       ]
     };
 
+    // ==========================================
+    // BARU: FUNGSI PERSISTENSI DATABASE LOKAL (LOCALSTORAGE SAFE GUARD)
+    // ==========================================
+    function saveDatabaseToStorage() {
+      try {
+        localStorage.setItem('sigap_live_kehadiran', JSON.stringify(database.liveKehadiran));
+        localStorage.setItem('sigap_riwayat_presensi', JSON.stringify(database.riwayatPresensi));
+        localStorage.setItem('sigap_dinas_luar', JSON.stringify(database.dinasLuar));
+        localStorage.setItem('sigap_izin_personal', JSON.stringify(database.izinPersonal));
+      } catch (e) {
+        console.warn("Penyimpanan localStorage dibatasi di lingkungan sandbox:", e);
+      }
+    }
+
+    function loadDatabaseFromStorage() {
+      try {
+        const savedLive = localStorage.getItem('sigap_live_kehadiran');
+        const savedRiwayat = localStorage.getItem('sigap_riwayat_presensi');
+        const savedDL = localStorage.getItem('sigap_dinas_luar');
+        const savedIzin = localStorage.getItem('sigap_izin_personal');
+
+        if (savedLive) database.liveKehadiran = JSON.parse(savedLive);
+        if (savedRiwayat) database.riwayatPresensi = JSON.parse(savedRiwayat);
+        if (savedDL) database.dinasLuar = JSON.parse(savedDL);
+        if (savedIzin) database.izinPersonal = JSON.parse(savedIzin);
+      } catch (e) {
+        console.warn("Pembacaan localStorage dibatasi di lingkungan sandbox:", e);
+      }
+    }
+
     window.onload = function() {
       updateRealtimeClock();
       setInterval(updateRealtimeClock, 1000);
       setupRealGPS();
-      loadSavedSchoolLogo(); // Muat logo sekolah yang pernah disimpan sebelumnya
+      loadSavedSchoolLogo(); // Muat logo sekolah dan memori database yang pernah disimpan sebelumnya
     };
 
     function updateRealtimeClock() {
@@ -878,6 +908,8 @@
       } catch (e) {
         console.warn("Akses localStorage dibatasi di lingkungan sandbox:", e);
       }
+      // Memuat database presensi berjalan agar tidak hilang
+      loadDatabaseFromStorage();
     }
 
     // ==========================================
@@ -1588,7 +1620,7 @@
       if (widget) widget.classList.add('hidden');
     }
 
-    // AMBIL GAMBAR & PILIH PROSES PRESENSI (MENDUKUNG ALUR 3 TAHAP UNTUK DINAS LUAR)
+    // AMBIL GAMBAR & PILIH PROSES PRESENSI (MENDUKUNG ALUR 3 TAHAP UNTUK DINAS LUAR DENGAN SINKRONISASI TANGGAL BERJALAN)
     function capturePhoto() {
       const video = document.getElementById('video');
       const canvas = document.getElementById('canvas');
@@ -1658,10 +1690,11 @@
               if (iconLonceng) iconLonceng.className = "fa-solid fa-building-flag text-5xl bell-ring";
               if (btnLonceng) btnLonceng.className = "w-32 h-32 bg-cyan-100 hover:bg-cyan-200 text-cyan-600 rounded-full flex flex-col items-center justify-center shadow-lg hover:shadow-cyan-200/50 transition-all transform hover:scale-105 active:scale-95";
               
-              // Masukkan data live presensi harian
+              // Masukkan data live presensi harian secara kumulatif (termasuk tanggal)
               database.liveKehadiran.unshift({
                 nama: currentUser.nama,
-                jabatan: currentUser.jabalan,
+                jabatan: currentUser.jabatan,
+                tanggal: tglSekarang,
                 jam: jamSekarang,
                 status: `DL Masuk ${isTerlambat ? '(Terlambat)' : ''}`,
                 foto: currentUser.foto
@@ -1686,6 +1719,7 @@
               database.liveKehadiran.unshift({
                 nama: currentUser.nama,
                 jabatan: currentUser.jabatan,
+                tanggal: tglSekarang,
                 jam: jamSekarang,
                 status: isTerlambat ? `Terlambat (${lateMinutes} mnt)` : "Hadir Tepat Waktu",
                 foto: currentUser.foto
@@ -1713,16 +1747,18 @@
             if (iconLonceng) iconLonceng.className = "fa-solid fa-bell-slash text-5xl text-rose-500";
             if (btnLonceng) btnLonceng.className = "w-32 h-32 bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-full flex flex-col items-center justify-center shadow-lg hover:shadow-rose-200/50 transition-all transform hover:scale-105 active:scale-95";
 
-            // Update status live harian
-            if (database.liveKehadiran[0] && database.liveKehadiran[0].nama === currentUser.nama) {
-              database.liveKehadiran[0].status = "DL Active (Tiba)";
-              database.liveKehadiran[0].jam = `${database.liveKehadiran[0].jam} | Tiba: ${jamSekarang}`;
+            // Update status live harian spesifik sesuai tanggal berjalan agar tidak merusak tanggal lain
+            const liveIdx = database.liveKehadiran.findIndex(item => item.nama === currentUser.nama && item.tanggal === tglSekarang);
+            if (liveIdx !== -1) {
+              database.liveKehadiran[liveIdx].status = "DL Active (Tiba)";
+              database.liveKehadiran[liveIdx].jam = `${database.liveKehadiran[liveIdx].jam} | Tiba: ${jamSekarang}`;
             }
 
-            // Update status riwayat personal harian
-            if (database.riwayatPresensi[0] && database.riwayatPresensi[0].tanggal === tglSekarang) {
-              database.riwayatPresensi[0].tiba = jamSekarang;
-              database.riwayatPresensi[0].status = "DL (Tiba di Lokasi)";
+            // Update status riwayat personal harian spesifik sesuai tanggal berjalan
+            const riwayatIdx = database.riwayatPresensi.findIndex(item => item.tanggal === tglSekarang);
+            if (riwayatIdx !== -1) {
+              database.riwayatPresensi[riwayatIdx].tiba = jamSekarang;
+              database.riwayatPresensi[riwayatIdx].status = "DL (Tiba di Lokasi)";
             }
 
             showCustomModal("success", "Selamat Tiba di Lokasi!", `Presensi kehadiran TIBA di lokasi dinas berhasil dicatat pada jam ${jamSekarang}. Selamat melaksanakan tugas.`);
@@ -1739,16 +1775,27 @@
               btnLonceng.className = "w-32 h-32 bg-slate-100 text-slate-400 rounded-full flex flex-col items-center justify-center shadow-lg transition-all transform opacity-60 cursor-not-allowed";
             }
 
-            if (database.riwayatPresensi[0] && database.riwayatPresensi[0].tanggal === tglSekarang) {
-              database.riwayatPresensi[0].pulang = jamSekarang;
+            // Update status live harian spesifik sesuai tanggal berjalan agar tidak merusak tanggal lain
+            const liveIdx = database.liveKehadiran.findIndex(item => item.nama === currentUser.nama && item.tanggal === tglSekarang);
+            if (liveIdx !== -1) {
+              database.liveKehadiran[liveIdx].status += " & Pulang";
+              database.liveKehadiran[liveIdx].jam += ` | Pulang: ${jamSekarang}`;
+            }
+
+            const riwayatIdx = database.riwayatPresensi.findIndex(item => item.tanggal === tglSekarang);
+            if (riwayatIdx !== -1) {
+              database.riwayatPresensi[riwayatIdx].pulang = jamSekarang;
               if (activeDL) {
-                database.riwayatPresensi[0].status = "DL Selesai (Hadir)";
+                database.riwayatPresensi[riwayatIdx].status = "DL Selesai (Hadir)";
               }
             }
 
             showCustomModal("success", "Absen Pulang Tercatat!", `Hati-hati di jalan pulang! Presensi PULANG harian Anda berhasil disimpan pada jam ${jamSekarang}.`);
           }
           
+          // Simpan seluruh data berjalan secara aman ke localStorage
+          saveDatabaseToStorage();
+
           renderLivePresensi();
           renderRiwayatList();
         } else {
@@ -1757,7 +1804,7 @@
       });
     }
 
-    // LIVE PRESENSI (PEGAWAI LAIN)
+    // LIVE PRESENSI (PEGAWAI LAIN DENGAN INDIKATOR TANGGAL BERJALAN)
     function renderLivePresensi() {
       const listEl = document.getElementById('live-list-pegawai');
       if (!listEl) return;
@@ -1785,12 +1832,31 @@
           statusBadgeColor = "text-cyan-600 bg-cyan-50 border-cyan-100";
         }
 
+        // Format tanggal berjalan manual yang kebal terhadap pergeseran zona waktu
+        let displayTgl = "Hari Ini";
+        if (item.tanggal) {
+          try {
+            const tglParts = item.tanggal.split('-');
+            if (tglParts.length === 3) {
+              const bulanNama = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+              displayTgl = `${parseInt(tglParts[2])} ${bulanNama[parseInt(tglParts[1]) - 1]}`;
+            } else {
+              displayTgl = item.tanggal;
+            }
+          } catch (e) {
+            displayTgl = "Hari Ini";
+          }
+        }
+
         return `
           <div class="flex items-center gap-3 bg-slate-50 border border-slate-100 p-3 rounded-2xl">
             <img src="${item.foto}" class="w-10 h-10 rounded-xl object-cover" alt="Foto">
             <div class="flex-1 min-w-0">
-              <h4 class="text-xs font-bold text-slate-800 truncate text-left">${item.nama}</h4>
-              <p class="text-[10px] text-slate-500 font-semibold truncate text-left">${item.jabatan}</p>
+              <div class="flex items-center gap-1.5 justify-start">
+                <h4 class="text-xs font-bold text-slate-800 truncate text-left">${item.nama}</h4>
+                <span class="text-[9px] text-slate-400 font-bold shrink-0 bg-slate-100 px-1.5 py-0.5 rounded-md">(${displayTgl})</span>
+              </div>
+              <p class="text-[10px] text-slate-500 font-semibold truncate text-left mt-0.5">${item.jabatan}</p>
             </div>
             <div class="text-right shrink-0">
               <span class="text-[10px] font-bold block px-2 py-1 rounded-lg border ${statusBadgeColor}">${item.status}</span>
@@ -1958,67 +2024,15 @@
         }
 
         bukaFormDL(false);
+        
+        // Simpan ke localStorage
+        saveDatabaseToStorage();
+
         filterDinasLuar();
         // Segera evaluasi geofencing jika ada pengajuan dinas luar baru yang disetujui
         checkGeofenceDistance();
         showCustomModal("success", "Pengajuan Dikirim", "Dinas luar Anda berhasil diajukan dan sedang menunggu verifikasi.");
-      }, 1200);
-    }
-
-    // FILTER DINAS LUAR
-    function filterDinasLuar() {
-      const container = document.getElementById('list-dl');
-      if (!container) return;
-      const status_tahun_el = document.getElementById('filter-dl-tahun');
-      const status_bulan_el = document.getElementById('filter-dl-bulan');
-      
-      const tahun = status_tahun_el ? status_tahun_el.value : "2026";
-      const bulan = status_bulan_el ? status_bulan_el.value : "semua";
-
-      let filtered = database.dinasLuar;
-
-      if (currentTabDL !== 'semua') {
-        filtered = filtered.filter(item => item.status === currentTabDL);
-      }
-
-      // Pastikan hanya memuat pengajuan dinas luar dari guru yang saat ini sedang login
-      filtered = filtered.filter(item => item.nip === currentUser.nip);
-
-      filtered = filtered.filter(item => {
-        const tgl = new Date(item.tglMulai);
-        const matchesTahun = tgl.getFullYear().toString() === tahun;
-        const matchesBulan = bulan === "semua" ? true : (tgl.getMonth() + 1).toString() === bulan;
-        return matchesTahun && matchesBulan;
-      });
-
-      if (filtered.length === 0) {
-        container.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Tidak ada riwayat dinas luar pada kriteria ini.</p>`;
-        return;
-      }
-
-      container.innerHTML = filtered.map(item => {
-        let statusBadge = '';
-        if (item.status === 'Disetujui') {
-          statusBadge = '<span class="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px] font-bold px-2 py-0.5 rounded-md">Disetujui</span>';
-        } else if (item.status === 'Menunggu') {
-          statusBadge = '<span class="bg-amber-50 text-amber-700 border border-amber-100 text-[10px] font-bold px-2 py-0.5 rounded-md">Menunggu</span>';
-        } else {
-          statusBadge = '<span class="bg-rose-50 text-rose-700 border border-rose-100 text-[10px] font-bold px-2 py-0.5 rounded-md">Ditolak</span>';
-        }
-
-        return `
-          <div class="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm flex flex-col gap-2">
-            <div class="flex justify-between items-start">
-              <div>
-                <h4 class="text-xs font-bold text-slate-800 text-left">${item.tipe}</h4>
-                <p class="text-[9px] text-slate-400 mt-0.5 text-left">${item.tglMulai} s/d ${item.tglSelesai}</p>
-              </div>
-              ${statusBadge}
-            </div>
-            <p class="text-[11px] text-slate-600 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-left">${item.keterangan}</p>
-          </div>
-        `;
-      }).join('');
+      }, 1000);
     }
 
     // LAYANAN IZIN PERSONAL (IZIN)
@@ -2074,6 +2088,10 @@
         document.getElementById('izin-keterangan').value = '';
 
         bukaFormIzin(false);
+        
+        // Simpan ke localStorage
+        saveDatabaseToStorage();
+
         filterIzinPersonal();
         showCustomModal("success", "Izin Dikirim", "Izin personal berhasil dikirim dan sedang dalam proses peninjauan.");
       }, 1000);
@@ -2133,7 +2151,7 @@
       }).join('');
     }
 
-    // RIWAYAT & REKAPITULASI PRIBADI (KONSISTEN WARNA MERAH UNTUK TERLAMBAT)
+    // RIWAYAT & REKAPITULASI PRIBADI
     function renderRiwayatList() {
       const container = document.getElementById('rincian-harian-list');
       if (!container) return;
