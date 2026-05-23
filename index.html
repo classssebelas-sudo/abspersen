@@ -138,7 +138,7 @@
           </div>
           <div class="flex gap-3 mt-2">
             <button type="submit" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shadow">DAFTAR & MASUK</button>
-            <button type="button" onclick="closeRegisterModal()" class="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition-colors">BATAL</button>
+            <button type="button" onclick="closeRegisterModal()" class="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-semibold rounded-xl transition-colors">BATAL</button>
           </div>
         </form>
       </div>
@@ -722,7 +722,7 @@
     // ==========================================
     const SPREADSHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzIPop_UzimD0uahrCOHc9aRn5Zo-KzuyGbdE3xHYeV8G46IGf3UnpDVWRQgC-w6iZkjQ/exec"; 
 
-    const KOORDINAT_SEKOLAH = [-6.3562831731423195, 106.5287926364578]; // SMA Mifthaussaadah (Titik Lock Geofence)
+    const KOORDINAT_SEKOLAH = [-6.356155218538327, 106.52872826309849]; // SMA Mifthaussaadah (Titik Lock Geofence)
     let userLocation = null; 
     let map = null; 
     let mapMarker = null;
@@ -773,7 +773,7 @@
     };
 
     // ==========================================
-    // BARU: FUNGSI PERSISTENSI DATABASE LOKAL (LOCALSTORAGE SAFE GUARD)
+    // FUNGSI PERSISTENSI DATABASE LOKAL (LOCALSTORAGE SAFE GUARD)
     // ==========================================
     function saveDatabaseToStorage() {
       try {
@@ -799,41 +799,6 @@
         if (savedIzin) database.izinPersonal = JSON.parse(savedIzin);
       } catch (e) {
         console.warn("Pembacaan localStorage dibatasi di lingkungan sandbox:", e);
-      }
-    }
-
-    window.onload = function() {
-      updateRealtimeClock();
-      setInterval(updateRealtimeClock, 1000);
-      setupRealGPS();
-      loadSavedSchoolLogo(); // Muat logo sekolah dan memori database yang pernah disimpan sebelumnya
-    };
-
-    function updateRealtimeClock() {
-      const sekarang = new Date();
-      const optionsTanggal = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-      const tanggalString = ClinicalFormatDate(sekarang, optionsTanggal);
-      const jamString = ClinicalFormatTime(sekarang);
-
-      const elTanggal = document.getElementById('realtime-tanggal');
-      const elJam = document.getElementById('realtime-jam');
-      const elLiveTanggal = document.getElementById('live-tanggal');
-
-      if (elTanggal) elTanggal.innerText = tanggalString;
-      if (elJam) elJam.innerText = jamString;
-      if (elLiveTanggal) elLiveTanggal.innerText = tanggalString;
-    }
-
-    function ClinicalFormatDate(date, options) {
-      return date.toLocaleDateString('id-ID', options);
-    }
-
-    // Memperbaiki potensi runtime crash dengan memastikan split string aman
-    function ClinicalFormatTime(date) {
-      try {
-        return date.toTimeString().split(' ')[0];
-      } catch (e) {
-        return "00:00:00";
       }
     }
 
@@ -1151,100 +1116,63 @@
     }
 
     // ==========================================
-    // LOGIKA INTEGRASI PENYIMPANAN SPREADSHEET
+    // LOGIKA DI-RENDER DI SETIAP MENU
     // ==========================================
-    async function kirimPresensiKeSpreadsheet(nip, nama, jabatan, tanggal, jam, tipe, koordinat, fotoBase64) {
-      if (!SPREADSHEET_WEB_APP_URL) {
-        return { success: true, localOnly: true };
+    function filterDinasLuar() {
+      const container = document.getElementById('list-dl');
+      if (!container) return;
+      const status_tahun_el = document.getElementById('filter-dl-tahun');
+      const status_bulan_el = document.getElementById('filter-dl-bulan');
+      
+      const tahun = status_tahun_el ? status_tahun_el.value : "2026";
+      const bulan = status_bulan_el ? status_bulan_el.value : "semua";
+
+      let filtered = database.dinasLuar || [];
+
+      if (currentTabDL !== 'semua') {
+        filtered = filtered.filter(item => item.status === currentTabDL);
       }
 
-      const payload = {
-        nip: nip,
-        nama: nama,
-        jabatan: jabatan,
-        tanggal: tanggal,
-        jam: jam,
-        tipe: tipe,
-        koordinat: koordinat,
-        foto: fotoBase64
-      };
-
-      try {
-        await fetch(SPREADSHEET_WEB_APP_URL, {
-          method: "POST",
-          mode: "no-cors", 
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(payload)
-        });
-        return { success: true };
-      } catch (error) {
-        console.error("Gagal mengirim presensi ke Google Sheets:", error);
-        return { success: false, error: error.message };
-      }
-    }
-
-    // ==========================================
-    // KIRIM REGISTRASI GURU BARU KE SPREADSHEET
-    // ==========================================
-    async function kirimRegistrasiKeSpreadsheet(nip, nama, jabatan, foto) {
-      if (!SPREADSHEET_WEB_APP_URL) {
-        return { success: true, localOnly: true };
+      // Pastikan hanya memuat pengajuan dinas luar dari guru yang saat ini sedang login
+      if (currentUser) {
+        filtered = filtered.filter(item => item.nip === currentUser.nip);
       }
 
-      const payload = {
-        action: "register_guru",
-        nip: nip,
-        nama: nama,
-        jabatan: jabatan,
-        foto: foto
-      };
+      filtered = filtered.filter(item => {
+        const tgl = new Date(item.tglMulai);
+        const matchesTahun = tgl.getFullYear().toString() === tahun;
+        const matchesBulan = bulan === "semua" ? true : (tgl.getMonth() + 1).toString() === bulan;
+        return matchesTahun && matchesBulan;
+      });
 
-      try {
-        await fetch(SPREADSHEET_WEB_APP_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(payload)
-        });
-        return { success: true };
-      } catch (error) {
-        console.error("Gagal mengirim data registrasi ke Google Sheets:", error);
-        return { success: false, error: error.message };
-      }
-    }
-
-    // ==========================================
-    // SINKRONISASI UPDATE FOTO PROFIL GURU KE SHEET
-    // ==========================================
-    async function kirimUpdateFotoKeSpreadsheet(nip, fotoBase64) {
-      if (!SPREADSHEET_WEB_APP_URL) {
-        return { success: true, localOnly: true };
+      if (filtered.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Tidak ada riwayat dinas luar pada kriteria ini.</p>`;
+        return;
       }
 
-      const payload = {
-        action: "update_foto_guru",
-        nip: nip,
-        foto: fotoBase64
-      };
+      container.innerHTML = filtered.map(item => {
+        let statusBadge = '';
+        if (item.status === 'Disetujui') {
+          statusBadge = '<span class="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px] font-bold px-2 py-0.5 rounded-md">Disetujui</span>';
+        } else if (item.status === 'Menunggu') {
+          statusBadge = '<span class="bg-amber-50 text-amber-700 border border-amber-100 text-[10px] font-bold px-2 py-0.5 rounded-md">Menunggu</span>';
+        } else {
+          statusBadge = '<span class="bg-rose-50 text-rose-700 border border-rose-100 text-[10px] font-bold px-2 py-0.5 rounded-md">Ditolak</span>';
+        }
 
-      try {
-        await fetch(SPREADSHEET_WEB_APP_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(payload)
-        });
-        return { success: true };
-      } catch (error) {
-        console.error("Gagal memperbarui foto profil di Google Sheets:", error);
-        return { success: false, error: error.message };
-      }
+        return `
+          <div class="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm flex flex-col gap-2">
+            <div class="flex justify-between items-start">
+              <div>
+                <h4 class="text-xs font-bold text-slate-800 text-left">${item.tipe}</h4>
+                <p class="text-[9px] text-slate-400 mt-0.5 text-left">${item.tglMulai} s/d ${item.tglSelesai}</p>
+              </div>
+              ${statusBadge}
+            </div>
+            <p class="text-[11px] text-slate-600 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-left">${item.keterangan}</p>
+          </div>
+        `;
+      }).join('');
     }
 
     // MODAL POP-UP CUSTOM
