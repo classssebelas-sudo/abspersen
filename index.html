@@ -588,10 +588,18 @@
         
         <!-- Header Profil Utama -->
         <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col items-center text-center gap-4">
-          <div class="relative">
-            <img id="akun-foto" src="" alt="Foto User" class="w-24 h-24 rounded-full object-cover border-4 border-emerald-500 shadow-lg">
+          <!-- Input File Tersembunyi untuk Unggah Foto Profil secara Manual -->
+          <input type="file" id="upload-avatar-input" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)">
+          
+          <div onclick="triggerAvatarUpload()" title="Klik untuk mengunggah foto baru" class="group relative cursor-pointer">
+            <img id="akun-foto" src="" alt="Foto User" class="w-24 h-24 rounded-full object-cover border-4 border-emerald-500 shadow-lg transition-transform duration-300 group-hover:scale-105">
             <div class="absolute bottom-0 right-0 bg-emerald-500 text-white rounded-full p-1.5 border-2 border-white text-xs flex items-center justify-center shadow">
-              <i class="fa-solid fa-shield-halved"></i>
+              <i class="fa-solid fa-camera"></i>
+            </div>
+            <!-- Overlay hover -->
+            <div class="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center text-white text-[9px] font-bold">
+              <i class="fa-solid fa-cloud-arrow-up text-base mb-1"></i>
+              GANTI FOTO
             </div>
           </div>
           <div>
@@ -1177,6 +1185,36 @@
       }
     }
 
+    // ==========================================
+    // SINKRONISASI UPDATE FOTO PROFIL GURU KE SHEET
+    // ==========================================
+    async function kirimUpdateFotoKeSpreadsheet(nip, fotoBase64) {
+      if (!SPREADSHEET_WEB_APP_URL) {
+        return { success: true, localOnly: true };
+      }
+
+      const payload = {
+        action: "update_foto_guru",
+        nip: nip,
+        foto: fotoBase64
+      };
+
+      try {
+        await fetch(SPREADSHEET_WEB_APP_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+        return { success: true };
+      } catch (error) {
+        console.error("Gagal memperbarui foto profil di Google Sheets:", error);
+        return { success: false, error: error.message };
+      }
+    }
+
     // MODAL POP-UP CUSTOM
     function showCustomModal(type, title, message) {
       const modal = document.getElementById('custom-modal');
@@ -1207,6 +1245,7 @@
       if (modal) modal.classList.add('hidden');
     }
 
+    // SPINNER LOADING GLOBAL
     function showLoading(show, text = "Memproses Data...") {
       const overlay = document.getElementById('loading-overlay');
       const textEl = document.getElementById('loading-text');
@@ -1220,7 +1259,7 @@
       }
     }
 
-    // RENDERING DATA AKUN
+    // RENDERING DATA AKUN (DENGAN PENYANGGA DATA AKTIF)
     function renderProfileMenu() {
       if (!currentUser) return;
       
@@ -1229,10 +1268,74 @@
       const elNip = document.getElementById('akun-nip-text');
       const elJabatan = document.getElementById('akun-jabatan');
 
-      if (elFoto) elFoto.src = currentUser.foto;
+      if (elFoto) elFoto.src = currentUser.foto || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150";
       if (elNama) elNama.innerText = currentUser.nama;
       if (elNip) elNip.innerText = "NIP. " + currentUser.nip;
       if (elJabatan) elJabatan.innerText = currentUser.jabatan;
+    }
+
+    // ==========================================
+    // LOGIKA SENSOR UNGGAH FOTO PROFIL SECARA MANUAL
+    // ==========================================
+    function triggerAvatarUpload() {
+      const input = document.getElementById('upload-avatar-input');
+      if (input) input.click();
+    }
+
+    function handleAvatarUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        showCustomModal("error", "Format Tidak Valid", "Pastikan file yang dipilih adalah berkas gambar (PNG, JPG, JPEG).");
+        return;
+      }
+
+      // Validasi batas ukuran file (Maks 1MB untuk konversi Base64 agar tidak memberatkan)
+      if (file.size > 1024 * 1024) {
+        showCustomModal("error", "Ukuran Terlalu Besar", "Batas maksimal ukuran foto profil adalah 1MB.");
+        return;
+      }
+
+      showLoading(true, "Memproses Foto Baru...");
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const base64Data = e.target.result;
+        
+        if (currentUser) {
+          // 1. Perbarui pada objek data guru aktif lokal
+          currentUser.foto = base64Data;
+          if (dynamicPegawai && dynamicPegawai[currentUser.nip]) {
+            dynamicPegawai[currentUser.nip].foto = base64Data;
+          }
+
+          // 2. Perbarui visualisasi tampilan secara real-time
+          const pFoto = document.getElementById('p-foto');
+          const akunFoto = document.getElementById('akun-foto');
+          if (pFoto) pFoto.src = base64Data;
+          if (akunFoto) akunFoto.src = base64Data;
+
+          // 3. Kirim dan sinkronisasikan pembaruan ke Google Sheets secara background
+          kirimUpdateFotoKeSpreadsheet(currentUser.nip, base64Data).then(res => {
+            showLoading(false);
+            if (res && res.success) {
+              showCustomModal("success", "Foto Diperbarui", "Foto profil Anda berhasil diunggah dan disimpan secara permanen.");
+            } else {
+              showCustomModal("success", "Foto Disimpan Lokal", "Foto profil diperbarui lokal (Koneksi Sheets offline).");
+            }
+          });
+        } else {
+          showLoading(false);
+        }
+      };
+
+      reader.onerror = function() {
+        showLoading(false);
+        showCustomModal("error", "Error Membaca File", "Gagal membaca berkas gambar yang dipilih.");
+      };
+
+      reader.readAsDataURL(file);
     }
 
     // ==========================================
@@ -1350,7 +1453,7 @@
 
         if (pNama) pNama.innerText = currentUser.nama;
         if (pJabatan) pJabatan.innerText = currentUser.jabatan;
-        if (pFoto) pFoto.src = currentUser.foto;
+        if (pFoto) pFoto.src = currentUser.foto || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150";
 
         renderProfileMenu();
 
@@ -1558,7 +1661,7 @@
               // Masukkan data live presensi harian
               database.liveKehadiran.unshift({
                 nama: currentUser.nama,
-                jabatan: currentUser.jabatan,
+                jabatan: currentUser.jabalan,
                 jam: jamSekarang,
                 status: `DL Masuk ${isTerlambat ? '(Terlambat)' : ''}`,
                 foto: currentUser.foto
