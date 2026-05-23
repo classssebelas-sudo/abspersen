@@ -138,7 +138,7 @@
           </div>
           <div class="flex gap-3 mt-2">
             <button type="submit" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shadow">DAFTAR & MASUK</button>
-            <button type="button" onclick="closeRegisterModal()" class="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-semibold rounded-xl transition-colors">BATAL</button>
+            <button type="button" onclick="closeRegisterModal()" class="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition-colors">BATAL</button>
           </div>
         </form>
       </div>
@@ -197,7 +197,7 @@
     <!-- Header Aplikasi -->
     <header class="bg-white border-b border-slate-100 sticky top-0 z-40 px-5 py-4 flex items-center justify-between">
       <div class="flex items-center gap-2.5">
-        <!-- Logo Header Sekolah -->
+        <!-- Logo Header Sekolah (Dapat berubah sesuai logo login) -->
         <div id="header-school-logo-container" class="w-9 h-9 bg-emerald-100 rounded-lg flex items-center justify-center text-emerald-600 font-bold overflow-hidden">
           <i class="fa-solid fa-school"></i>
         </div>
@@ -589,9 +589,10 @@
         <!-- Header Profil Utama -->
         <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col items-center text-center gap-4">
           <!-- Input File Tersembunyi untuk Unggah Foto Profil secara Manual -->
-          <input type="file" id="upload-avatar-input" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)">
+          <!-- Menambahkan filter format berkas hanya PNG, JPG, dan JPEG -->
+          <input type="file" id="upload-avatar-input" accept=".png, .jpg, .jpeg, image/png, image/jpeg" class="hidden" onchange="handleAvatarUpload(event)">
           
-          <div onclick="triggerAvatarUpload()" title="Klik untuk mengunggah foto baru" class="group relative cursor-pointer">
+          <div onclick="triggerAvatarUpload()" title="Klik untuk mengunggah foto baru (Maks. 50 KB, Format: PNG/JPG)" class="group relative cursor-pointer">
             <img id="akun-foto" src="" alt="Foto User" class="w-24 h-24 rounded-full object-cover border-4 border-emerald-500 shadow-lg transition-transform duration-300 group-hover:scale-105">
             <div class="absolute bottom-0 right-0 bg-emerald-500 text-white rounded-full p-1.5 border-2 border-white text-xs flex items-center justify-center shadow">
               <i class="fa-solid fa-camera"></i>
@@ -681,7 +682,7 @@
             <div>
               <span class="text-[10px] font-bold text-slate-400 block uppercase">Locations Presensi Diperbolehkan</span>
               <p class="text-xs font-extrabold text-slate-700 mt-0.5">SMA Mifthaussaadah</p>
-              <p class="text-[10px] font-semibold text-rose-500 mt-0.5"><i class="fa-solid fa-circle-exclamation mr-0.5"></i> Terkunci dalam radius geofence maks. 150 meter</p>
+              <p class="text-[10px] font-semibold text-rose-500 mt-0.5"><i class="fa-solid fa-circle-exclamation mr-0.5"></i> Terkunci dalam radius geofence maks. 100 meter</p>
             </div>
           </div>
         </div>
@@ -722,13 +723,57 @@
     // ==========================================
     const SPREADSHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzIPop_UzimD0uahrCOHc9aRn5Zo-KzuyGbdE3xHYeV8G46IGf3UnpDVWRQgC-w6iZkjQ/exec"; 
 
-    const KOORDINAT_SEKOLAH = [-6.356162072893862, 106.52876199575518]; // SMA Mifthaussaadah (Titik Lock Geofence)
+    const KOORDINAT_SEKOLAH = [-6.3564504700942335, 106.52880277283144]; // SMA Mifthaussaadah (Titik Lock Geofence)
     let userLocation = null; 
     let map = null; 
     let mapMarker = null;
     let cameraStream = null;
     let currentUser = null;
     let watchId = null; // Menyimpan ID tracker Geolocation
+
+    // ==========================================
+    // DATA HARI LIBUR NASIONAL INDONESIA 2026
+    // ==========================================
+    const DAFTAR_LIBUR_2026 = [
+      "2026-01-01", // Tahun Baru 2026 Masehi
+      "2026-01-27", // Isra Mi'raj Nabi Muhammad SAW
+      "2026-02-17", // Tahun Baru Imlek 2577 Kongzili
+      "2026-03-19", // Hari Suci Nyepi (Tahun Baru Saka 1948)
+      "2026-04-03", // Wafat Yesus Kristus
+      "2026-04-05", // Hari Paskah
+      "2026-04-20", "2026-04-21", // Hari Raya Idul Fitri 1447 H
+      "2026-05-01", // Hari Buruh Internasional
+      "2026-05-14", // Kenaikan Yesus Kristus
+      "2026-05-27", // Hari Raya Waisak 2570 BE
+      "2026-06-01", // Hari Lahir Pancasila
+      "2026-06-15", // Hari Raya Idul Adha 1447 H
+      "2026-07-16", // Tahun Baru Islam 1448 H
+      "2026-08-17", // Hari Kemerdekaan RI ke-81
+      "2026-09-25", // Maulid Nabi Muhammad SAW
+      "2026-12-25"  // Hari Raya Natal
+    ];
+
+    // Fungsi Pembantu Mendapatkan Format YYYY-MM-DD Lokal
+    function getLocalYYYYMMDD(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    // Fungsi Pemeriksa Apakah Hari Ini Libur
+    function isHariLibur(date) {
+      const day = date.getDay(); // 0 = Minggu, 6 = Sabtu
+      if (day === 0 || day === 6) {
+        return { libur: true, alasan: "Akhir Pekan (Weekend)" };
+      }
+      
+      const formatYMD = getLocalYYYYMMDD(date);
+      if (DAFTAR_LIBUR_2026.includes(formatYMD)) {
+        return { libur: true, alasan: "Hari Libur Nasional" };
+      }
+      return { libur: false };
+    }
 
     // Database Pengguna / Guru (Diambil dinamis dari Sheets)
     let dynamicPegawai = {};
@@ -774,6 +819,36 @@
         { tanggal: "2026-05-12", hari: "Selasa", masuk: "06:15", tiba: "--:--", pulang: "15:00", status: "Hadir Tepat Waktu" }
       ]
     };
+
+    // ==========================================
+    // FUNGSI JAM REALTIME UTAMA
+    // ==========================================
+    function updateRealtimeClock() {
+      const sekarang = new Date();
+      const optionsTanggal = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      const tanggalString = ClinicalFormatDate(sekarang, optionsTanggal);
+      const jamString = ClinicalFormatTime(sekarang);
+
+      const elTanggal = document.getElementById('realtime-tanggal');
+      const elJam = document.getElementById('realtime-jam');
+      const elLiveTanggal = document.getElementById('live-tanggal');
+
+      if (elTanggal) elTanggal.innerText = tanggalString;
+      if (elJam) elJam.innerText = jamString;
+      if (elLiveTanggal) elLiveTanggal.innerText = tanggalString;
+    }
+
+    function ClinicalFormatDate(date, options) {
+      return date.toLocaleDateString('id-ID', options);
+    }
+
+    function ClinicalFormatTime(date) {
+      try {
+        return date.toTimeString().split(' ')[0];
+      } catch (e) {
+        return "00:00:00";
+      }
+    }
 
     // ==========================================
     // FUNGSI PERSISTENSI DATABASE LOKAL (LOCALSTORAGE SAFE GUARD)
@@ -948,7 +1023,7 @@
           resolve(null);
         }
       }).then(result => {
-        // Bersihkan tag script setelah proses selesai
+        // Pembersihan tag script setelah proses selesai
         const oldScript = document.getElementById('sigap-jsonp-script');
         if (oldScript) {
           try {
@@ -960,6 +1035,66 @@
           return result.users;
         }
         return null;
+      });
+    }
+
+    // ==========================================
+    // BARU: AMBIL DATA DINAS LUAR DARI GOOGLE SHEETS
+    // ==========================================
+    let jsonpDLResolve = null;
+
+    window.handleSIGAPDLCallback = function(data) {
+      if (jsonpDLResolve) {
+        jsonpDLResolve(data);
+      }
+    };
+
+    async function fetchDLFromSheets(nip) {
+      if (!SPREADSHEET_WEB_APP_URL) return;
+      
+      showLoading(true, "Memperbarui Data Dinas Luar...");
+
+      return new Promise((resolve) => {
+        let timeoutId = null;
+        let script = null;
+        jsonpDLResolve = resolve;
+
+        const cleanup = () => {
+          if (timeoutId) clearTimeout(timeoutId);
+          const oldScript = document.getElementById('sigap-dl-script');
+          if (oldScript) {
+            try { oldScript.remove(); } catch(e) {}
+          }
+        };
+
+        timeoutId = setTimeout(() => {
+          console.warn("Pemuatan Dinas Luar dari Sheets melampaui batas waktu.");
+          cleanup();
+          resolve(null);
+        }, 5000);
+
+        try {
+          script = document.createElement('script');
+          script.id = 'sigap-dl-script';
+          script.src = `${SPREADSHEET_WEB_APP_URL}?action=get_dl&nip=${nip}&callback=handleSIGAPDLCallback&ts=${Date.now()}`;
+          script.onerror = () => {
+            cleanup();
+            resolve(null);
+          };
+          document.body.appendChild(script);
+        } catch (e) {
+          cleanup();
+          resolve(null);
+        }
+      }).then(result => {
+        showLoading(false);
+        if (result && result.status === "success" && result.dinasLuar) {
+          // Ganti data dinasLuar lokal dengan data resmi dari Sheets
+          database.dinasLuar = result.dinasLuar;
+          saveDatabaseToStorage();
+          filterDinasLuar();
+          checkGeofenceDistance();
+        }
       });
     }
 
@@ -1027,15 +1162,37 @@
     }
 
     function checkGeofenceDistance() {
-      const activeDL = getActiveDinasLuar();
       const btnLonceng = document.getElementById('btn-lonceng');
       const helperText = document.getElementById('btn-helper-text');
       const currentStageEl = document.getElementById('status-lonceng-text');
       const currentStage = currentStageEl ? currentStageEl.innerText : "MASUK";
+      const iconLonceng = document.getElementById('icon-lonceng');
 
-      // ATURAN PENGAMAN BARU: JIKA GURU MEMASUKI TAHAP PRESENSI PULANG DAN BELUM JAM 15.00
+      // 1. CEK ATURAN HARI LIBUR / OFF DULU SECARA ABSOLUT
+      const now = new Date();
+      const statusLibur = isHariLibur(now);
+
+      if (statusLibur.libur) {
+        if (iconLonceng) {
+          iconLonceng.className = "fa-solid fa-building-circle-xmark text-5xl text-amber-500 animate-none";
+        }
+        if (currentStageEl) {
+          currentStageEl.innerText = "HARI LIBUR / OFF";
+        }
+        if (btnLonceng) {
+          btnLonceng.disabled = true;
+          btnLonceng.className = "w-32 h-32 bg-amber-50 text-amber-600 rounded-full flex flex-col items-center justify-center shadow-lg border border-amber-200/60 cursor-not-allowed transition-all";
+        }
+        if (helperText) {
+          helperText.className = "text-[10px] text-slate-500 mt-4 text-center font-bold px-4 leading-relaxed";
+          helperText.innerHTML = `<i class="fa-solid fa-couch mr-1 text-emerald-500"></i> Tidak ada jadwal presensi hari ini (${statusLibur.alasan}). Nikmati waktu istirahat Anda!`;
+        }
+        updateGPSStatus("success", `Hari Libur: ${statusLibur.alasan}. Presensi dinonaktifkan.`);
+        return; // Menghentikan seluruh pengecekan geofence atau alur absen reguler
+      }
+
+      // 2. CEK ATURAN PENGAMAN WAKTU PULANG SEBELUM JAM 15.00 WIB
       if (currentStage === "PULANG") {
-        const now = new Date();
         const jamSekarang = now.getHours();
         
         if (jamSekarang < 15) {
@@ -1051,7 +1208,8 @@
         }
       }
 
-      // JIKA GURU MEMILIKI DINAS LUAR AKTIF, BEBASKAN RADIUS GEOFENCING!
+      // 3. JIKA GURU MEMILIKI DINAS LUAR AKTIF, BEBASKAN RADIUS GEOFENCING!
+      const activeDL = getActiveDinasLuar();
       if (activeDL) {
         updateGPSStatus("success", `Status: Dinas Luar Aktif (${activeDL.tipe}). Presensi diperbolehkan di mana saja.`);
         if (btnLonceng) {
@@ -1073,7 +1231,7 @@
         return;
       }
 
-      // JIKA TIDAK ADA DINAS LUAR, JALANKAN VALIDASI LOKASI NORMAL (100 meter)
+      // 4. JIKA TIDAK ADA DINAS LUAR, JALANKAN VALIDASI LOKASI NORMAL (100 meter)
       if (!userLocation) {
         updateGPSStatus("error", "Mencari sinyal GPS perangkat Anda...");
         if (btnLonceng) {
@@ -1265,14 +1423,19 @@
       const file = event.target.files[0];
       if (!file) return;
 
-      if (!file.type.startsWith('image/')) {
-        showCustomModal("error", "Format Tidak Valid", "Pastikan file yang dipilih adalah berkas gambar (PNG, JPG, JPEG).");
+      // VALIDASI TIPE FILE: Hanya menerima format PNG, JPG, dan JPEG
+      const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+      if (!allowedTypes.includes(file.type)) {
+        showCustomModal("error", "Format Tidak Valid", "Unggahan dibatalkan! Format berkas harus berupa PNG, JPG, atau JPEG.");
+        event.target.value = ""; // reset input
         return;
       }
 
-      // Validasi batas ukuran file (Maks 1MB untuk konversi Base64 agar tidak memberatkan)
-      if (file.size > 1024 * 1024) {
-        showCustomModal("error", "Ukuran Terlalu Besar", "Batas maksimal ukuran foto profil adalah 1MB.");
+      // VALIDASI UKURAN FILE: Maksimal 50 KB (50 * 1024 = 51200 byte)
+      const maxSizeBytes = 50 * 1024;
+      if (file.size > maxSizeBytes) {
+        showCustomModal("error", "Ukuran Terlalu Besar", "Unggahan dibatalkan! Ukuran foto profil maksimal adalah 50 KB.");
+        event.target.value = ""; // reset input
         return;
       }
 
@@ -1479,8 +1642,8 @@
       filterDinasLuar();
       filterIzinPersonal();
       
-      // Update GPS & Geofencing status sesegera mungkin
-      checkGeofenceDistance();
+      // Ambil data DL khusus Guru baru (Akan kosong secara default dari sheet)
+      fetchDLFromSheets(currentUser.nip);
 
       showCustomModal("success", "Registrasi Berhasil!", `Selamat datang, ${currentUser.nama}. Data Anda telah disimpan secara permanen di database Google Sheets. Login selanjutnya langsung dikenali!`);
     }
@@ -1551,8 +1714,8 @@
         filterDinasLuar();
         filterIzinPersonal();
         
-        // Update GPS & Geofencing status sesegera mungkin
-        checkGeofenceDistance();
+        // Ambil riwayat dinas luar milik guru tersebut secara asinkron dari Google Sheets
+        fetchDLFromSheets(currentUser.nip);
 
         if (usingSheets) {
           showCustomModal("success", "Sesi Terbuka (Online)", `Selamat bekerja, ${currentUser.nama}. Data profil Anda sinkron dengan Google Sheets.`);
@@ -1621,9 +1784,15 @@
       const currentStageEl = document.getElementById('status-lonceng-text');
       const currentStage = currentStageEl ? currentStageEl.innerText : "MASUK";
 
+      // BLOKIR JIKA HARI LIBUR / OFF
+      const now = new Date();
+      if (isHariLibur(now).libur) {
+        showCustomModal("error", "Sistem Libur", "Sistem presensi dinonaktifkan sepenuhnya pada hari libur nasional / akhir pekan.");
+        return;
+      }
+
       // BLOKIR PEMBUKAAN KAMERA JIKA TAHAP ADALAH "PULANG" DAN BELUM JAM 15.00 WIB
       if (currentStage === "PULANG") {
-        const now = new Date();
         if (now.getHours() < 15) {
           showCustomModal("error", "Presensi Terkunci", "Presensi PULANG belum diperbolehkan sebelum pukul 15.00 WIB.");
           return;
@@ -1675,6 +1844,14 @@
       const video = document.getElementById('video');
       const canvas = document.getElementById('canvas');
       if (!video || !canvas) return;
+
+      // BLOKIR MUTLAK PROSES JIKA HARI LIBUR
+      const now = new Date();
+      if (isHariLibur(now).libur) {
+        showCustomModal("error", "Sistem Libur", "Sistem presensi dinonaktifkan pada hari libur.");
+        tutupKamera();
+        return;
+      }
 
       const ctx = canvas.getContext('2d');
 
@@ -2045,6 +2222,37 @@
       }
     }
 
+    // PENGIRIMAN DL BARU KE GOOGLE SHEETS
+    async function kirimDinasLuarKeSheets(nip, nama, jabatan, tipe, tglMulai, tglSelesai, keterangan) {
+      if (!SPREADSHEET_WEB_APP_URL) return { success: true, localOnly: true };
+
+      const payload = {
+        action: "add_dl",
+        nip: nip,
+        nama: nama,
+        jabatan: jabatan,
+        tipe: tipe,
+        tglMulai: tglMulai,
+        tglSelesai: tglSelesai,
+        keterangan: keterangan,
+        status: "Menunggu" // Status Default Kolom 9
+      };
+
+      try {
+        await fetch(SPREADSHEET_WEB_APP_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        return { success: true };
+      } catch (error) {
+        console.error("Gagal mengirim ajuan DL ke Google Sheets:", error);
+        return { success: false, error: error.toString() };
+      }
+    }
+
+    // EVENT SAAT GURU MENGISI FORM DL
     function kirimDinasLuar(event) {
       event.preventDefault();
       const tipe = document.getElementById('dl-tipe').value;
@@ -2053,20 +2261,23 @@
       const keterangan = document.getElementById('dl-keterangan').value;
       const coords = document.getElementById('dl-coords').value;
 
-      showLoading(true, "Mengirim Pengajuan DL...");
+      const keteranganLengkap = keterangan + (coords ? ` [Lokasi Koordinat: ${coords}]` : '');
 
-      setTimeout(() => {
+      showLoading(true, "Mengirim Pengajuan DL ke Google Sheets...");
+
+      kirimDinasLuarKeSheets(
+        currentUser.nip,
+        currentUser.nama,
+        currentUser.jabatan,
+        tipe,
+        tglMulai,
+        tglSelesai,
+        keteranganLengkap
+      ).then((res) => {
         showLoading(false);
-        database.dinasLuar.unshift({
-          id: Date.now(),
-          nip: currentUser.nip, // Menghubungkan Dinas Luar dengan NIP guru secara otomatis
-          tipe,
-          tglMulai,
-          tglSelesai,
-          keterangan: keterangan + (coords ? ` [Lokasi Koordinat: ${coords}]` : ''),
-          status: "Menunggu"
-        });
+        bukaFormDL(false);
 
+        // Reset Formulir
         document.getElementById('dl-tgl-mulai').value = '';
         document.getElementById('dl-tgl-selesai').value = '';
         document.getElementById('dl-keterangan').value = '';
@@ -2076,16 +2287,12 @@
           mapMarker = null;
         }
 
-        bukaFormDL(false);
+        // Tampilkan Pesan Sukses
+        showCustomModal("success", "Pengajuan Dikirim", "Dinas luar Anda berhasil diajukan ke Google Sheets dan sedang menunggu persetujuan (Status di Kolom 9).");
         
-        // Simpan ke localStorage
-        saveDatabaseToStorage();
-
-        filterDinasLuar();
-        // Segera evaluasi geofencing jika ada pengajuan dinas luar baru yang disetujui
-        checkGeofenceDistance();
-        showCustomModal("success", "Pengajuan Dikirim", "Dinas luar Anda berhasil diajukan dan sedang menunggu verifikasi.");
-      }, 1000);
+        // Tarik Ulang Data DL Terbaru agar status langsung tersinkronisasi
+        fetchDLFromSheets(currentUser.nip);
+      });
     }
 
     // LAYANAN IZIN PERSONAL (IZIN)
@@ -2344,6 +2551,16 @@
         `;
       }).join('');
     }
+
+    // ==========================================
+    // SISTEM INITIALISASI WINDOW ONLOAD
+    // ==========================================
+    window.onload = function() {
+      updateRealtimeClock();
+      setInterval(updateRealtimeClock, 1000);
+      setupRealGPS();
+      loadSavedSchoolLogo(); // Muat logo sekolah dan memori database yang pernah disimpan sebelumnya
+    };
   </script>
 </body>
 </html>
